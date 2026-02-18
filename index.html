@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>SBS Shiksha Niketan – Marksheet System</title>
+  <meta name="theme-color" content="#1a237e" />
+  <meta name="description" content="Marksheet management system for SBS Shiksha Niketan" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a237e;
+      --accent: #c62828;
+      --gold: #f9a825;
+      --teal: #00695c;
+      --bg: #f0f2f5;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+    .playfair { font-family: 'Playfair Display', serif; }
+
+    /* Sidebar */
+    .sidebar { background: linear-gradient(180deg, #0d1b6e 0%, #1a237e 40%, #283593 100%); }
+    .sidebar-item { transition: all 0.2s; border-left: 3px solid transparent; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.1); border-left-color: var(--gold); }
+    .sidebar-item.active { background: rgba(255,255,255,0.15); border-left-color: var(--gold); }
+
+    /* Cards */
+    .glass-card { background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .stat-card { background: linear-gradient(135deg, var(--primary), #283593); color: white; border-radius: 14px; padding: 20px; }
+
+    /* Buttons */
+    .btn-primary { background: var(--primary); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .btn-primary:hover { background: #0d1b6e; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(26,35,126,0.3); }
+    .btn-danger { background: var(--accent); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .btn-danger:hover { background: #b71c1c; }
+    .btn-success { background: #2e7d32; color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+    .btn-gold { background: var(--gold); color: #333; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+
+    /* Inputs */
+    .inp { width: 100%; padding: 9px 13px; border: 1.5px solid #e0e0e0; border-radius: 9px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border 0.2s; background: #fafafa; }
+    .inp:focus { border-color: var(--primary); background: #fff; }
+
+    /* Table editor */
+    .marks-inp { width: 100%; padding: 5px 4px; border: 1px solid #ddd; border-radius: 5px; font-size: 12px; text-align: center; outline: none; font-family: 'DM Sans', sans-serif; }
+    .marks-inp:focus { border-color: #1a237e; background: #e8eaf6; }
+
+    /* ===== PRINT MARKSHEET STYLES ===== */
+    @media print {
+      body * { visibility: hidden !important; }
+      #PRINT_AREA, #PRINT_AREA * { visibility: visible !important; }
+      #PRINT_AREA {
+        position: fixed !important;
+        left: 0 !important; top: 0 !important;
+        width: 210mm !important;
+        min-height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        background: white !important;
+      }
+      @page { size: A4 portrait; margin: 0; }
+    }
+
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+
+    /* Mobile bottom nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e0e0e0; z-index: 100; display: flex; justify-content: space-around; padding: 8px 0 12px; }
+    .bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: #666; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 4px 12px; border-radius: 8px; }
+    .bottom-nav button.active { color: var(--primary); font-weight: 700; }
+
+    /* Badge */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #e8f5e9; color: #2e7d32; }
+    .badge-red { background: #ffebee; color: #c62828; }
+    .badge-blue { background: #e3f2fd; color: #1565c0; }
+    .badge-gold { background: #fff8e1; color: #e65100; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 12px 24px; border-radius: 24px; font-size: 14px; z-index: 9999; font-family: 'DM Sans', sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f0f2f5; }
+    ::-webkit-scrollbar-thumb { background: #9fa8da; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ==================== CONSTANTS ====================
+    const SCHOOL = {
+      name: "SBS SHIKSHA NIKETAN",
+      address: "KARASPUR PRITHVIPUR, GHAZIPUR (U.P.)",
+      email: "",
+      phone: "",
+      reportTitle: "PROGRESS EVALUATION REPORT",
+    };
+
+    const DEFAULT_SUBJECTS = [
+      "HINDI","ENGLISH","MATHEMATICS","SCIENCE","SOCIAL SCIENCE","SANSKRIT","COMPUTER","G.K."
+    ];
+
+    const GRADE_SCALE = [
+      { min: 91, max: 100, grade: "A1", label: "OUTSTANDING" },
+      { min: 81, max: 90,  grade: "A2", label: "EXCELLENT" },
+      { min: 71, max: 80,  grade: "B1", label: "VERY GOOD" },
+      { min: 61, max: 70,  grade: "B2", label: "GOOD" },
+      { min: 51, max: 60,  grade: "C1", label: "AVERAGE" },
+      { min: 41, max: 50,  grade: "C2", label: "SATISFACTORY" },
+      { min: 33, max: 40,  grade: "D",  label: "PASS" },
+      { min: 0,  max: 32,  grade: "E",  label: "FAIL" },
+    ];
+
+    function getGrade(pct) {
+      if (isNaN(pct) || pct === null) return "-";
+      for (const g of GRADE_SCALE) {
+        if (pct >= g.min && pct <= g.max) return g.grade;
+      }
+      return "-";
+    }
+    function getGradeLabel(pct) {
+      if (isNaN(pct) || pct === null) return "-";
+      for (const g of GRADE_SCALE) {
+        if (pct >= g.min && pct <= g.max) return g.label;
+      }
+      return "-";
+    }
+
+    // ==================== STORAGE ====================
+    const STORAGE_KEY = "sbs_marksheet_v2";
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+    function saveData(data) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+    }
+
+    function newStudent() {
+      return {
+        id: Date.now() + Math.random(),
+        name: "", father: "", mother: "", address: "",
+        roll: "", admission: "", dob: "", cls: "", section: "", session: "2025-26",
+        photo: null,
+        attendance: { present: "", total: "" },
+        remarks: "",
+        subjects: DEFAULT_SUBJECTS.map(n => ({
+          name: n, mm1: 50, obt1: "", mm2: 50, obt2: "", mm3: 50, obt3: ""
+        })),
+        coScholastic: {
+          sports: "", art: "", music: "", discipline: "", cleanliness: ""
+        }
+      };
+    }
+
+    // ==================== CALCULATIONS ====================
+    function calcSubjectTotal(sub) {
+      return (parseFloat(sub.obt1)||0) + (parseFloat(sub.obt2)||0) + (parseFloat(sub.obt3)||0);
+    }
+    function calcSubjectMM(sub) {
+      return (parseFloat(sub.mm1)||0) + (parseFloat(sub.mm2)||0) + (parseFloat(sub.mm3)||0);
+    }
+    function calcGrandTotals(subjects) {
+      return subjects.reduce((acc, sub) => {
+        acc.mm1   += parseFloat(sub.mm1)||0;
+        acc.obt1  += parseFloat(sub.obt1)||0;
+        acc.mm2   += parseFloat(sub.mm2)||0;
+        acc.obt2  += parseFloat(sub.obt2)||0;
+        acc.mm3   += parseFloat(sub.mm3)||0;
+        acc.obt3  += parseFloat(sub.obt3)||0;
+        acc.mmG   += calcSubjectMM(sub);
+        acc.obtG  += calcSubjectTotal(sub);
+        return acc;
+      }, {mm1:0,obt1:0,mm2:0,obt2:0,mm3:0,obt3:0,mmG:0,obtG:0});
+    }
+    function calcPct(obt, mm) {
+      if (!mm) return null;
+      return parseFloat(((obt / mm) * 100).toFixed(1));
+    }
+
+    // ==================== TOAST ====================
+    function Toast({ msg }) {
+      return msg ? <div className="toast">{msg}</div> : null;
+    }
+
+    // ==================== ICONS (SVG inline) ====================
+    const Icon = {
+      dashboard: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+      students: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+      add: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>,
+      print: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+      save: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+      trash: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+      back: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+      preview: <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+      edit: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+      upload: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>,
+      search: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+      info: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+    };
+
+    // ==================== DASHBOARD ====================
+    function Dashboard({ students, onNew, onSelect }) {
+      const [search, setSearch] = useState("");
+      const filtered = students.filter(s =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.roll.includes(search) ||
+        s.cls.toLowerCase().includes(search.toLowerCase())
+      );
+
+      const stats = {
+        total: students.length,
+        classes: [...new Set(students.map(s => s.cls).filter(Boolean))].length,
+        passed: students.filter(s => {
+          const gt = calcGrandTotals(s.subjects);
+          return gt.mmG > 0 && calcPct(gt.obtG, gt.mmG) >= 33;
+        }).length,
+      };
+
+      return (
+        <div className="fade-in p-4 pb-24 md:pb-6">
+          {/* Header */}
+          <div className="glass-card p-5 mb-4 text-center" style={{background:'linear-gradient(135deg,#1a237e,#283593)'}}>
+            <div className="text-white text-xs font-semibold tracking-widest mb-1 opacity-80">SCHOOL MANAGEMENT SYSTEM</div>
+            <div className="playfair text-white text-2xl font-bold leading-tight">SBS SHIKSHA NIKETAN</div>
+            <div className="text-blue-200 text-xs mt-1">Karaspur Prithvipur, Ghazipur (U.P.)</div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="glass-card p-3 text-center">
+              <div className="text-3xl font-bold text-blue-800">{stats.total}</div>
+              <div className="text-xs text-gray-500 mt-1">Students</div>
+            </div>
+            <div className="glass-card p-3 text-center">
+              <div className="text-3xl font-bold text-green-700">{stats.passed}</div>
+              <div className="text-xs text-gray-500 mt-1">Passed</div>
+            </div>
+            <div className="glass-card p-3 text-center">
+              <div className="text-3xl font-bold text-orange-600">{stats.classes}</div>
+              <div className="text-xs text-gray-500 mt-1">Classes</div>
+            </div>
+          </div>
+
+          {/* Search + Add */}
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icon.search}</span>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search student, class, roll..." className="inp pl-9" />
+            </div>
+            <button onClick={onNew} className="btn-primary flex items-center gap-2 whitespace-nowrap">
+              {Icon.add} <span className="hidden sm:inline">New Student</span>
+            </button>
+          </div>
+
+          {/* Student List */}
+          {filtered.length === 0 ? (
+            <div className="glass-card p-10 text-center">
+              <div className="text-5xl mb-3">📋</div>
+              <div className="text-gray-500 font-medium">No students yet</div>
+              <div className="text-gray-400 text-sm mt-1">Click "New Student" to add</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map(s => {
+                const gt = calcGrandTotals(s.subjects);
+                const pct = gt.mmG > 0 ? calcPct(gt.obtG, gt.mmG) : null;
+                const passed = pct !== null && pct >= 33;
+                return (
+                  <div key={s.id} onClick={() => onSelect(s.id)}
+                    className="glass-card p-4 flex items-center gap-3 cursor-pointer hover:shadow-lg transition-shadow">
+                    <div style={{width:44,height:44,borderRadius:12,overflow:'hidden',background:'#e8eaf6',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {s.photo
+                        ? <img src={s.photo} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                        : <span style={{fontSize:20}}>👤</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-800 truncate">{s.name || "Unnamed Student"}</div>
+                      <div className="text-xs text-gray-500">
+                        Class: <b>{s.cls}{s.section ? '-'+s.section : ''}</b>
+                        {s.roll && <> &nbsp;|&nbsp; Roll: <b>{s.roll}</b></>}
+                        {s.session && <> &nbsp;|&nbsp; {s.session}</>}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {pct !== null && (
+                        <>
+                          <div className="font-bold text-sm" style={{color: passed?'#2e7d32':'#c62828'}}>{pct}%</div>
+                          <span className={`badge ${passed?'badge-green':'badge-red'}`}>{getGrade(pct)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==================== STUDENT EDITOR ====================
+    function StudentEditor({ student, onSave, onBack, onPreview, onDelete, toast }) {
+      const [s, setS] = useState(() => JSON.parse(JSON.stringify(student)));
+      const photoRef = useRef();
+
+      const upd = (field, val) => setS(prev => ({ ...prev, [field]: val }));
+      const updSubject = (i, field, val) => {
+        const subs = [...s.subjects];
+        subs[i] = { ...subs[i], [field]: val };
+        setS(prev => ({ ...prev, subjects: subs }));
+      };
+      const addSubject = () => {
+        setS(prev => ({...prev, subjects: [...prev.subjects, {name:"", mm1:50,obt1:"",mm2:50,obt2:"",mm3:50,obt3:""}]}));
+      };
+      const removeSubject = (i) => {
+        setS(prev => ({...prev, subjects: prev.subjects.filter((_,idx)=>idx!==i)}));
+      };
+      const handlePhoto = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => setS(prev => ({...prev, photo: ev.target.result}));
+        reader.readAsDataURL(file);
+      };
+      const handleSave = () => { onSave(s); toast("✅ Saved successfully!"); };
+
+      const gt = calcGrandTotals(s.subjects);
+      const overallPct = gt.mmG > 0 ? calcPct(gt.obtG, gt.mmG) : null;
+
+      // Auto rank calculation note: rank is set manually or calculated across all students
+      return (
+        <div className="fade-in pb-32 md:pb-8">
+          {/* Top bar */}
+          <div style={{background:'linear-gradient(135deg,#1a237e,#283593)',padding:'14px 16px'}} className="flex items-center gap-3 sticky top-0 z-50">
+            <button onClick={onBack} style={{background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:'6px 10px',color:'white',cursor:'pointer'}}>
+              {Icon.back}
+            </button>
+            <div className="flex-1">
+              <div className="text-white font-bold text-sm">{s.name || "New Student"}</div>
+              <div className="text-blue-200 text-xs">{s.cls ? `Class ${s.cls}` : "Enter details below"}</div>
+            </div>
+            <button onClick={handleSave} style={{background:'#f9a825',border:'none',borderRadius:8,padding:'8px 14px',fontWeight:700,cursor:'pointer',fontSize:13}}>
+              {Icon.save} Save
+            </button>
+            <button onClick={() => { handleSave(); onPreview(s); }} style={{background:'#c62828',border:'none',borderRadius:8,padding:'8px 14px',color:'white',fontWeight:700,cursor:'pointer',fontSize:13}}>
+              {Icon.print} Print
+            </button>
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Live score banner */}
+            {overallPct !== null && (
+              <div style={{background:'linear-gradient(135deg,#e8f5e9,#f1f8e9)',border:'1.5px solid #a5d6a7',borderRadius:14,padding:'12px 16px'}} className="flex justify-between items-center">
+                <div>
+                  <div className="text-xs text-gray-500">Overall Score</div>
+                  <div className="text-2xl font-bold text-green-800">{gt.obtG} / {gt.mmG}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-green-700">{overallPct}%</div>
+                  <div style={{background:'#2e7d32',color:'white',padding:'2px 12px',borderRadius:20,fontSize:13,fontWeight:700}}>{getGrade(overallPct)} – {getGradeLabel(overallPct)}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Student Info */}
+            <div className="glass-card p-4">
+              <div className="font-bold text-gray-700 mb-3 flex items-center gap-2 text-sm">👤 Student Information</div>
+              <div className="flex gap-4 mb-4">
+                {/* Photo */}
+                <div onClick={() => photoRef.current.click()} style={{width:80,height:96,border:'2px dashed #9fa8da',borderRadius:10,cursor:'pointer',overflow:'hidden',background:'#f5f5f5',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  {s.photo ? <img src={s.photo} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <div className="text-center text-xs text-gray-400 p-2">{Icon.upload}<br/>Photo</div>}
+                </div>
+                <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+                <div className="flex-1 space-y-2">
+                  <input className="inp" placeholder="Student Full Name *" value={s.name} onChange={e=>upd('name',e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className="inp" placeholder="Class (e.g. 5)" value={s.cls} onChange={e=>upd('cls',e.target.value)} />
+                    <input className="inp" placeholder="Section (A/B)" value={s.section} onChange={e=>upd('section',e.target.value)} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input className="inp" placeholder="Father's Name" value={s.father} onChange={e=>upd('father',e.target.value)} />
+                <input className="inp" placeholder="Mother's Name" value={s.mother} onChange={e=>upd('mother',e.target.value)} />
+                <input className="inp" placeholder="Roll No." value={s.roll} onChange={e=>upd('roll',e.target.value)} />
+                <input className="inp" placeholder="Admission No." value={s.admission} onChange={e=>upd('admission',e.target.value)} />
+                <input className="inp" placeholder="Date of Birth" type="date" value={s.dob} onChange={e=>upd('dob',e.target.value)} />
+                <input className="inp" placeholder="Session (2025-26)" value={s.session} onChange={e=>upd('session',e.target.value)} />
+                <input className="inp col-span-2" placeholder="Address" value={s.address} onChange={e=>upd('address',e.target.value)} style={{gridColumn:'span 2'}} />
+              </div>
+            </div>
+
+            {/* Attendance */}
+            <div className="glass-card p-4">
+              <div className="font-bold text-gray-700 mb-3 text-sm">📅 Attendance</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">Days Present</label>
+                  <input className="inp" type="number" placeholder="e.g. 210" value={s.attendance.present} onChange={e=>setS(p=>({...p,attendance:{...p.attendance,present:e.target.value}}))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Total Working Days</label>
+                  <input className="inp" type="number" placeholder="e.g. 240" value={s.attendance.total} onChange={e=>setS(p=>({...p,attendance:{...p.attendance,total:e.target.value}}))} />
+                </div>
+              </div>
+              {s.attendance.present && s.attendance.total && (
+                <div className="mt-2 text-xs text-green-700 font-semibold">
+                  Attendance: {((s.attendance.present/s.attendance.total)*100).toFixed(0)}%
+                </div>
+              )}
+            </div>
+
+            {/* Marks Table */}
+            <div className="glass-card p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div className="font-bold text-gray-700 text-sm">📊 Marks Entry (3 Terms)</div>
+                <button onClick={addSubject} style={{background:'#e3f2fd',color:'#1565c0',border:'none',borderRadius:8,padding:'5px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Add Subject</button>
+              </div>
+              <div style={{overflowX:'auto'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+                  <thead>
+                    <tr style={{background:'#e8eaf6'}}>
+                      <th style={{padding:'6px 4px',textAlign:'left',borderRadius:'6px 0 0 0',minWidth:90}}>Subject</th>
+                      <th colSpan="2" style={{padding:'6px 2px',color:'#1a237e'}}>Term 1</th>
+                      <th colSpan="2" style={{padding:'6px 2px',color:'#1a237e'}}>Term 2</th>
+                      <th colSpan="2" style={{padding:'6px 2px',color:'#1a237e'}}>Term 3</th>
+                      <th style={{padding:'6px 4px',color:'#c62828'}}>Total</th>
+                      <th style={{padding:'6px 4px',color:'#2e7d32'}}>%</th>
+                      <th style={{padding:'6px 4px',color:'#6a1b9a'}}>Grade</th>
+                      <th></th>
+                    </tr>
+                    <tr style={{background:'#f3f4ff',fontSize:10}}>
+                      <th></th>
+                      <th style={{padding:'3px 2px',color:'#666'}}>MM</th><th style={{padding:'3px 2px',color:'#333'}}>Obt</th>
+                      <th style={{padding:'3px 2px',color:'#666'}}>MM</th><th style={{padding:'3px 2px',color:'#333'}}>Obt</th>
+                      <th style={{padding:'3px 2px',color:'#666'}}>MM</th><th style={{padding:'3px 2px',color:'#333'}}>Obt</th>
+                      <th></th><th></th><th></th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.subjects.map((sub, i) => {
+                      const tot = calcSubjectTotal(sub);
+                      const mm = calcSubjectMM(sub);
+                      const pct = mm > 0 ? calcPct(tot, mm) : null;
+                      const pass = pct !== null && pct >= 33;
+                      return (
+                        <tr key={i} style={{borderBottom:'1px solid #eee',background: i%2===0?'#fafafa':'white'}}>
+                          <td style={{padding:'4px 3px'}}>
+                            <input className="marks-inp" style={{textAlign:'left',fontWeight:600,width:'100%'}} value={sub.name} onChange={e=>updSubject(i,'name',e.target.value)} placeholder="Subject" />
+                          </td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36,background:'#e3f2fd'}} value={sub.mm1} onChange={e=>updSubject(i,'mm1',e.target.value)} /></td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36}} value={sub.obt1} onChange={e=>updSubject(i,'obt1',e.target.value)} /></td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36,background:'#e3f2fd'}} value={sub.mm2} onChange={e=>updSubject(i,'mm2',e.target.value)} /></td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36}} value={sub.obt2} onChange={e=>updSubject(i,'obt2',e.target.value)} /></td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36,background:'#e3f2fd'}} value={sub.mm3} onChange={e=>updSubject(i,'mm3',e.target.value)} /></td>
+                          <td style={{padding:'3px 2px'}}><input className="marks-inp" style={{width:36}} value={sub.obt3} onChange={e=>updSubject(i,'obt3',e.target.value)} /></td>
+                          <td style={{padding:'3px 4px',fontWeight:700,color:'#c62828',textAlign:'center'}}>{mm>0?tot:''}</td>
+                          <td style={{padding:'3px 4px',textAlign:'center',fontWeight:600,color:pass?'#2e7d32':'#c62828'}}>{pct!==null?pct+'%':''}</td>
+                          <td style={{padding:'3px 4px',textAlign:'center'}}>
+                            {pct!==null && <span style={{background:pass?'#e8f5e9':'#ffebee',color:pass?'#2e7d32':'#c62828',padding:'1px 6px',borderRadius:10,fontSize:11,fontWeight:700}}>{getGrade(pct)}</span>}
+                          </td>
+                          <td style={{padding:'3px 2px'}}>
+                            <button onClick={()=>removeSubject(i)} style={{background:'none',border:'none',cursor:'pointer',color:'#e57373',padding:'2px'}}>{Icon.trash}</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Grand Total Row */}
+                    <tr style={{background:'#e8eaf6',fontWeight:700,fontSize:12}}>
+                      <td style={{padding:'6px 4px'}}>GRAND TOTAL</td>
+                      <td style={{padding:'6px 2px',color:'#666',textAlign:'center'}}>{gt.mm1}</td>
+                      <td style={{padding:'6px 2px',textAlign:'center'}}>{gt.obt1}</td>
+                      <td style={{padding:'6px 2px',color:'#666',textAlign:'center'}}>{gt.mm2}</td>
+                      <td style={{padding:'6px 2px',textAlign:'center'}}>{gt.obt2}</td>
+                      <td style={{padding:'6px 2px',color:'#666',textAlign:'center'}}>{gt.mm3}</td>
+                      <td style={{padding:'6px 2px',textAlign:'center'}}>{gt.obt3}</td>
+                      <td style={{padding:'6px 4px',color:'#c62828',textAlign:'center'}}>{gt.obtG} / {gt.mmG}</td>
+                      <td style={{padding:'6px 4px',textAlign:'center',color: overallPct>=33?'#2e7d32':'#c62828'}}>{overallPct}%</td>
+                      <td style={{padding:'6px 4px',textAlign:'center'}}>
+                        {overallPct!==null && <span style={{background:'#1a237e',color:'white',padding:'2px 8px',borderRadius:10,fontSize:12}}>{getGrade(overallPct)}</span>}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Co-Scholastic */}
+            <div className="glass-card p-4">
+              <div className="font-bold text-gray-700 mb-3 text-sm">🎨 Co-Scholastic Activities (Grades: A+/A/B+/B/C)</div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {[['sports','Sports & Games'],['art','Art & Craft'],['music','Music & Dance'],['discipline','Discipline'],['cleanliness','Cleanliness']].map(([k,lbl])=>(
+                  <div key={k}>
+                    <label className="text-xs text-gray-500">{lbl}</label>
+                    <select className="inp" value={s.coScholastic[k]} onChange={e=>setS(p=>({...p,coScholastic:{...p.coScholastic,[k]:e.target.value}}))}>
+                      <option value="">Select</option>
+                      {['A+','A','B+','B','C'].map(g=><option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Remarks */}
+            <div className="glass-card p-4">
+              <div className="font-bold text-gray-700 mb-3 text-sm">✏️ Teacher's Remarks & Result</div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div>
+                  <label className="text-xs text-gray-500">Class Rank</label>
+                  <input className="inp" placeholder="e.g. 3" value={s.rank||''} onChange={e=>upd('rank',e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Result</label>
+                  <select className="inp" value={s.result||''} onChange={e=>upd('result',e.target.value)}>
+                    <option value="">Auto</option>
+                    <option value="PASS">PASS</option>
+                    <option value="FAIL">FAIL</option>
+                    <option value="PROMOTED">PROMOTED</option>
+                  </select>
+                </div>
+              </div>
+              <textarea className="inp" rows="2" placeholder="Teacher's remarks..." value={s.remarks} onChange={e=>upd('remarks',e.target.value)} style={{resize:'none'}} />
+            </div>
+
+            {/* Delete */}
+            <button onClick={onDelete} style={{width:'100%',padding:'12px',background:'#fff5f5',color:'#c62828',border:'1.5px solid #ffcdd2',borderRadius:12,fontWeight:600,cursor:'pointer',fontFamily:'DM Sans,sans-serif'}}>
+              🗑️ Delete This Student
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== MARKSHEET PRINT VIEW ====================
+    function MarksheetPrint({ student: s, onClose }) {
+      const gt = calcGrandTotals(s.subjects);
+      const overallPct = gt.mmG > 0 ? calcPct(gt.obtG, gt.mmG) : null;
+      const result = s.result || (overallPct !== null ? (overallPct >= 33 ? "PASS" : "FAIL") : "");
+      const attPct = s.attendance.present && s.attendance.total
+        ? ((s.attendance.present / s.attendance.total) * 100).toFixed(0) + '%'
+        : s.attendance.present ? s.attendance.present + ' days' : '';
+
+      return (
+        <div className="fade-in">
+          {/* Controls - no print */}
+          <div className="no-print flex items-center gap-3 p-3 sticky top-0 z-50" style={{background:'#1a237e'}}>
+            <button onClick={onClose} style={{background:'rgba(255,255,255,0.15)',border:'none',borderRadius:8,padding:'7px 12px',color:'white',cursor:'pointer',fontFamily:'DM Sans'}}>
+              {Icon.back} Back
+            </button>
+            <div className="text-white font-semibold text-sm flex-1">{s.name} – Marksheet Preview</div>
+            <button onClick={()=>window.print()} style={{background:'#c62828',border:'none',borderRadius:8,padding:'8px 18px',color:'white',fontWeight:700,cursor:'pointer',fontFamily:'DM Sans',display:'flex',alignItems:'center',gap:6}}>
+              {Icon.print} Print / Save PDF
+            </button>
+          </div>
+
+          {/* ACTUAL MARKSHEET */}
+          <div id="PRINT_AREA" style={{
+            width:'210mm', minHeight:'297mm', background:'white',
+            margin:'0 auto', padding:'6mm', boxSizing:'border-box',
+            fontFamily:'Arial, sans-serif'
+          }}>
+            {/* OUTER BORDER */}
+            <div style={{border:'3px solid #c62828', padding:'3px', height:'100%', minHeight:'282mm'}}>
+              <div style={{border:'1px solid #000', padding:'5px', minHeight:'278mm', display:'flex', flexDirection:'column'}}>
+
+                {/* HEADER */}
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6, minHeight:130}}>
+                  {/* Logo placeholder left */}
+                  <div style={{width:90,height:90,border:'1px solid #ccc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,color:'#999',textAlign:'center',flexShrink:0}}>
+                    SCHOOL<br/>LOGO
+                  </div>
+
+                  {/* School Info Center */}
+                  <div style={{flex:1, textAlign:'center', padding:'0 10px'}}>
+                    <div style={{fontSize:26, fontWeight:900, color:'#c62828', letterSpacing:1, fontFamily:'"Times New Roman", serif', textTransform:'uppercase', lineHeight:1.1}}>
+                      SBS SHIKSHA NIKETAN
+                    </div>
+                    <div style={{fontSize:11, fontWeight:600, color:'#222', marginTop:3}}>
+                      Karaspur Prithvipur, Ghazipur (U.P.)
+                    </div>
+                    <div style={{display:'inline-block', background:'#ffff00', color:'#c62828', padding:'3px 16px', fontWeight:800, fontSize:13, borderBottom:'2px solid #c62828', textDecoration:'underline', marginTop:6}}>
+                      PROGRESS EVALUATION REPORT
+                    </div>
+                    <div style={{fontSize:12, fontWeight:700, color:'#1a237e', marginTop:5}}>
+                      ACADEMIC SESSION: <span style={{color:'#000'}}>{s.session}</span>
+                      &nbsp;&nbsp;&nbsp;
+                      CLASS: <span style={{color:'#000', fontFamily:'"Times New Roman",serif', fontWeight:900}}>{s.cls}{s.section ? '-'+s.section : ''}</span>
+                    </div>
+                  </div>
+
+                  {/* Student Photo Right */}
+                  <div style={{width:80, height:96, border:'1px solid #000', flexShrink:0, overflow:'hidden', background:'#f5f5f5', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                    {s.photo
+                      ? <img src={s.photo} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                      : <span style={{fontSize:11,color:'#999',textAlign:'center'}}>Photo</span>}
+                  </div>
+                </div>
+
+                {/* STUDENT INFO BOX */}
+                <div style={{background:'#d1eeee', borderTop:'2px solid #000', borderBottom:'2px solid #000', padding:'6px 8px', marginBottom:6, display:'flex', justifyContent:'space-between', minHeight:90, fontFamily:'"Times New Roman", serif'}}>
+                  <div style={{display:'flex',flexDirection:'column',justifyContent:'space-evenly',fontSize:11,fontWeight:700,width:'60%'}}>
+                    <div><span style={{display:'inline-block',width:130}}>STUDENT'S NAME</span> : <span style={{textTransform:'uppercase'}}>{s.name}</span></div>
+                    <div><span style={{display:'inline-block',width:130}}>MOTHER'S NAME</span> : <span style={{textTransform:'uppercase'}}>{s.mother}</span></div>
+                    <div><span style={{display:'inline-block',width:130}}>FATHER'S NAME</span> : <span style={{textTransform:'uppercase'}}>{s.father}</span></div>
+                    <div><span style={{display:'inline-block',width:130}}>ADDRESS</span> : <span style={{textTransform:'uppercase'}}>{s.address}</span></div>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',justifyContent:'space-evenly',fontSize:11,fontWeight:700,textAlign:'right',width:'38%'}}>
+                    <div>ROLL NO : <span style={{fontWeight:900}}>{s.roll}</span></div>
+                    <div>ADMISSION NO : <span style={{fontWeight:900}}>{s.admission}</span></div>
+                    <div>DATE OF BIRTH : <span>{s.dob}</span></div>
+                  </div>
+                </div>
+
+                {/* MARKS TABLE */}
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:10,marginBottom:6}}>
+                  <thead>
+                    <tr style={{background:'#fce4d6',height:32}}>
+                      <th rowSpan="2" style={{border:'1px solid #000',textAlign:'left',paddingLeft:4,fontWeight:800,fontSize:11,width:'22%'}}>SUBJECTS</th>
+                      <th colSpan="2" style={{border:'1px solid #000',color:'#1a237e',fontSize:10,fontWeight:700}}>FIRST TERM EXAM</th>
+                      <th colSpan="2" style={{border:'1px solid #000',color:'#1a237e',fontSize:10,fontWeight:700}}>SECOND TERM EXAM</th>
+                      <th colSpan="2" style={{border:'1px solid #000',color:'#1a237e',fontSize:10,fontWeight:700}}>THIRD TERM EXAM</th>
+                      <th colSpan="2" style={{border:'1px solid #000',color:'#1a237e',fontSize:10,fontWeight:700}}>GRAND TOTAL</th>
+                      <th rowSpan="2" style={{border:'1px solid #000',fontWeight:700,fontSize:10}}>GRADE</th>
+                    </tr>
+                    <tr style={{background:'#fce4d6',height:26}}>
+                      {['MM','MARKS OBT','MM','MARKS OBT','MM','MARKS OBT','MM','TOTAL'].map((h,i)=>(
+                        <th key={i} style={{border:'1px solid #000',color: i%2===0?'#0070c0':'#333',fontWeight:700,fontSize:9,padding:'2px'}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.subjects.map((sub,i) => {
+                      const tot = calcSubjectTotal(sub);
+                      const mm = calcSubjectMM(sub);
+                      const pct = mm>0 ? calcPct(tot,mm) : null;
+                      return (
+                        <tr key={i} style={{height:26,background: i%2===0?'white':'#fafafa'}}>
+                          <td style={{border:'1px solid #000',paddingLeft:4,fontWeight:700,textTransform:'uppercase',fontSize:10}}>{sub.name}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0',fontWeight:700}}>{sub.mm1}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:600}}>{sub.obt1}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0',fontWeight:700}}>{sub.mm2}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:600}}>{sub.obt2}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0',fontWeight:700}}>{sub.mm3}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:600}}>{sub.obt3}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0',fontWeight:700}}>{mm>0?mm:''}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:700}}>{mm>0?tot:''}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:800,color: pct!==null&&pct<33?'#c62828':'#1a237e'}}>{pct!==null?getGrade(pct):''}</td>
+                        </tr>
+                      );
+                    })}
+                    {/* Padding rows */}
+                    {[...Array(Math.max(0, 10-s.subjects.length))].map((_,i)=>(
+                      <tr key={'p'+i} style={{height:26}}>
+                        {[...Array(10)].map((_,j)=><td key={j} style={{border:'1px solid #000'}}></td>)}
+                      </tr>
+                    ))}
+                    {/* Total Row */}
+                    <tr style={{background:'#f2f2f2',fontWeight:800,height:30}}>
+                      <td style={{border:'1px solid #000',paddingLeft:4}}>TOTAL</td>
+                      <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0'}}>{gt.mm1}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center'}}>{gt.obt1||''}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0'}}>{gt.mm2}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center'}}>{gt.obt2||''}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0'}}>{gt.mm3}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center'}}>{gt.obt3||''}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center',color:'#0070c0'}}>{gt.mmG}</td>
+                      <td style={{border:'1px solid #000',textAlign:'center'}}>{gt.obtG}</td>
+                      <td style={{border:'1px solid #000'}}></td>
+                    </tr>
+                    {/* Percentage Row */}
+                    <tr style={{background:'#f2f2f2',fontWeight:800,height:30}}>
+                      <td style={{border:'1px solid #000',paddingLeft:4}}>PERCENTAGE</td>
+                      <td colSpan="2" style={{border:'1px solid #000',textAlign:'center'}}>{gt.mm1>0?((gt.obt1/gt.mm1)*100).toFixed(0)+'%':''}</td>
+                      <td colSpan="2" style={{border:'1px solid #000',textAlign:'center'}}>{gt.mm2>0?((gt.obt2/gt.mm2)*100).toFixed(0)+'%':''}</td>
+                      <td colSpan="2" style={{border:'1px solid #000',textAlign:'center'}}>{gt.mm3>0?((gt.obt3/gt.mm3)*100).toFixed(0)+'%':''}</td>
+                      <td colSpan="2" style={{border:'1px solid #000',textAlign:'center',fontSize:14}}>{overallPct}%</td>
+                      <td style={{border:'1px solid #000',textAlign:'center',fontWeight:900,fontSize:13,color:'#1a237e'}}>{getGrade(overallPct)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* CO-SCHOLASTIC */}
+                <div style={{background:'#fce4d6',fontWeight:700,fontSize:10,padding:'4px 6px',border:'1px solid #000',display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span>Co-Scholastic Area</span>
+                  <span>A+: OUTSTANDING &nbsp; A: EXCELLENT &nbsp; B+: VERY GOOD &nbsp; B: GOOD &nbsp; C: AVERAGE</span>
+                </div>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:10,marginBottom:4}}>
+                  <tbody>
+                    <tr style={{height:26}}>
+                      {[['Sports & Games','sports'],['Art & Craft','art'],['Music & Dance','music'],['Discipline','discipline'],['Cleanliness','cleanliness']].map(([lbl,k])=>(
+                        <React.Fragment key={k}>
+                          <td style={{border:'1px solid #000',padding:'2px 5px',fontWeight:700,background:'#f9f9f9'}}>{lbl}</td>
+                          <td style={{border:'1px solid #000',textAlign:'center',fontWeight:800,color:'#1a237e'}}>{s.coScholastic[k]||''}</td>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* GRADE SCALE */}
+                <div style={{display:'flex',border:'1px solid #000',marginBottom:8,height:30,fontSize:9}}>
+                  <div style={{background:'#595959',color:'white',fontWeight:700,width:'15%',display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'0 4px'}}>MARK RANGE : GRADE</div>
+                  <div style={{flex:1,display:'flex'}}>
+                    {GRADE_SCALE.map((g,i)=>(
+                      <div key={i} style={{flex:1,background:'#dbe5f1',borderLeft:'1px solid #fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:600}}>
+                        {g.min===0?'00':g.min}-{g.max}:{g.grade}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* RESULT + ATTENDANCE + REMARKS */}
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:11,fontWeight:700,marginBottom:8,padding:'0 4px',gap:8}}>
+                  <div style={{flex:1}}>Remark: <span style={{borderBottom:'1px solid #000',display:'inline-block',minWidth:80,paddingBottom:1}}>{s.remarks}</span></div>
+                  <div>Rank: <span style={{borderBottom:'1px solid #000',display:'inline-block',minWidth:40,textAlign:'center',paddingBottom:1}}>{s.rank||''}</span></div>
+                  <div>Attendance: <span style={{borderBottom:'1px solid #000',display:'inline-block',minWidth:60,paddingBottom:1}}>{attPct}</span></div>
+                  <div style={{background: result==='PASS'?'#e8f5e9':'#ffebee',border:'1.5px solid',borderColor:result==='PASS'?'#2e7d32':'#c62828',padding:'2px 12px',borderRadius:4,color:result==='PASS'?'#2e7d32':'#c62828',fontWeight:900,fontSize:13}}>
+                    RESULT: {result}
+                  </div>
+                </div>
+
+                {/* SIGNATURES */}
+                <div style={{display:'flex',justifyContent:'space-between',marginTop:'auto',paddingTop:16,paddingBottom:4,fontSize:11,fontWeight:700,paddingLeft:16,paddingRight:16}}>
+                  <div style={{textAlign:'center'}}>
+                    <div style={{borderTop:'2px dotted #000',width:130,marginBottom:3}}></div>
+                    Date
+                  </div>
+                  <div style={{textAlign:'center'}}>
+                    <div style={{borderTop:'2px dotted #000',width:130,marginBottom:3}}></div>
+                    Class Teacher
+                  </div>
+                  <div style={{textAlign:'center'}}>
+                    <div style={{borderTop:'2px dotted #000',width:130,marginBottom:3}}></div>
+                    Principal
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== MAIN APP ====================
+    function App() {
+      const [screen, setScreen] = useState('dashboard'); // dashboard | editor | print
+      const [students, setStudents] = useState(() => {
+        const d = loadData();
+        return d && d.students ? d.students : [];
+      });
+      const [activeId, setActiveId] = useState(null);
+      const [toastMsg, setToastMsg] = useState('');
+      const [printStudent, setPrintStudent] = useState(null);
+
+      // Auto-save to localStorage on change
+      useEffect(() => {
+        saveData({ students, version: 2 });
+      }, [students]);
+
+      const showToast = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(''), 2500);
+      };
+
+      const handleNew = () => {
+        const s = newStudent();
+        setStudents(prev => [...prev, s]);
+        setActiveId(s.id);
+        setScreen('editor');
+      };
+
+      const handleSelect = (id) => {
+        setActiveId(id);
+        setScreen('editor');
+      };
+
+      const handleSave = (updated) => {
+        setStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
+      };
+
+      const handleDelete = () => {
+        if (!window.confirm("Delete this student permanently?")) return;
+        setStudents(prev => prev.filter(s => s.id !== activeId));
+        setScreen('dashboard');
+        showToast("🗑️ Student deleted");
+      };
+
+      const handlePreview = (s) => {
+        setPrintStudent(s);
+        setScreen('print');
+      };
+
+      const activeStudent = students.find(s => s.id === activeId);
+
+      return (
+        <div style={{maxWidth: 900, margin:'0 auto', minHeight:'100vh', background:'#f0f2f5', position:'relative'}}>
+          {screen === 'dashboard' && (
+            <Dashboard students={students} onNew={handleNew} onSelect={handleSelect} />
+          )}
+          {screen === 'editor' && activeStudent && (
+            <StudentEditor
+              student={activeStudent}
+              onSave={handleSave}
+              onBack={() => setScreen('dashboard')}
+              onPreview={handlePreview}
+              onDelete={handleDelete}
+              toast={showToast}
+            />
+          )}
+          {screen === 'print' && printStudent && (
+            <MarksheetPrint student={printStudent} onClose={() => setScreen('editor')} />
+          )}
+          <Toast msg={toastMsg} />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(() => console.log('SW Registered ✅'))
+          .catch(err => console.log('SW Error:', err));
+      });
+    }
+  </script>
+</body>
+</html>
