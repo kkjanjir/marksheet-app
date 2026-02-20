@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>SBS Shiksha Niketan — Marksheet System</title>
+<meta name="theme-color" content="#1a237e"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Inter',sans-serif;background:#0f0f1a;-webkit-tap-highlight-color:transparent;color:#1a1a2e;}
+
+/* ── iOS GLASS SYSTEM ── */
+.glass{
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:20px;
+}
+.glass-card{
+  background:rgba(255,255,255,0.95);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.8);
+  border-radius:18px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.8) inset;
+}
+.glass-dark{
+  background:rgba(26,35,126,0.85);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.15);
+}
+
+/* ── INPUTS ── */
+.inp{
+  width:100%;padding:11px 14px;
+  border:1.5px solid rgba(26,35,126,0.15);
+  border-radius:12px;font-size:13.5px;
+  font-family:'Inter',sans-serif;outline:none;
+  background:rgba(255,255,255,0.9);
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  color:#1a1a2e;
+}
+.inp:focus{
+  border-color:#1a237e;
+  background:#fff;
+  box-shadow:0 0 0 4px rgba(26,35,126,0.08), 0 2px 8px rgba(26,35,126,0.1);
+  transform:translateY(-1px);
+}
+.inp::placeholder{color:#aaa;}
+
+.btn{
+  border:none;border-radius:12px;padding:10px 20px;font-weight:700;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:13px;
+  transition:all .2s cubic-bezier(.4,0,.2,1);
+  letter-spacing:0.2px;
+}
+.btn:active{transform:scale(0.96);}
+.btn:hover{filter:brightness(1.05);}
+
+.mi{
+  width:100%;padding:5px 3px;
+  border:1px solid rgba(26,35,126,0.15);border-radius:8px;font-size:11px;
+  text-align:center;outline:none;font-family:'Inter',sans-serif;
+  background:rgba(255,255,255,0.9);
+  transition:all .15s;
+}
+.mi:focus{border-color:#1a237e;background:#fff;box-shadow:0 0 0 2px rgba(26,35,126,0.1);}
+
+/* ── DROPDOWN ── */
+.sug{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);
+  background:rgba(255,255,255,0.98);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(26,35,126,0.15);
+  border-radius:14px;z-index:400;
+  box-shadow:0 20px 60px rgba(0,0,0,0.15);
+  max-height:180px;overflow-y:auto;
+  animation:fadeDown .15s ease;
+}
+.sug-item{padding:11px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(0,0,0,0.04);color:#333;}
+.sug-item:hover{background:rgba(26,35,126,0.06);color:#1a237e;}
+.sug-item:last-child{border-bottom:none;}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+
+.fi{animation:fadeUp .3s cubic-bezier(.4,0,.2,1) both;}
+.pulse{animation:pulse 1.2s infinite;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:rgba(26,26,46,0.95);
+  backdrop-filter:blur(20px);
+  color:#fff;padding:12px 28px;border-radius:40px;
+  font-size:13px;z-index:9999;
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+  white-space:nowrap;animation:fadeUp .2s ease;
+  border:1px solid rgba(255,255,255,0.1);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:rgba(26,35,126,0.2);border-radius:6px;}
+
+/* ── DESKTOP LAYOUT ── */
+@media(min-width:900px){
+  .shell{display:flex;height:100vh;overflow:hidden;}
+  .left-pane{width:480px;flex-shrink:0;overflow-y:auto;height:100vh;
+    border-right:1px solid rgba(255,255,255,0.08);background:#0f0f1a;}
+  .right-pane{flex:1;overflow-y:auto;height:100vh;
+    background:linear-gradient(160deg,#1a1a3e,#0f0f1a);
+    display:flex;flex-direction:column;align-items:center;padding:24px 16px;}
+}
+@media(max-width:899px){
+  .shell,.left-pane{display:block;width:100%;min-height:100vh;background:#0f0f1a;}
+  .right-pane{display:none!important;}
+}
+
+/* ── PRINT ── */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  html,body{margin:0!important;padding:0!important;width:210mm!important;height:297mm!important;background:white!important;overflow:hidden!important;}
+  body *{visibility:hidden!important;}
+  #MARKSHEET,#MARKSHEET *{visibility:visible!important;}
+  #MARKSHEET{position:fixed!important;inset:0!important;width:210mm!important;height:297mm!important;
+    margin:0!important;padding:0!important;overflow:hidden!important;background:white!important;box-shadow:none!important;}
+  @page{size:210mm 297mm;margin:0mm;}
+  .no-print{display:none!important;}
+}
+
+/* ── THREE DOT MENU ── */
+.menu-overlay{
+  position:fixed;inset:0;z-index:200;
+  animation:fadeIn .15s ease;
+}
+.menu-popup{
+  position:absolute;right:14px;top:52px;
+  background:rgba(255,255,255,0.98);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(0,0,0,0.1);
+  border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.2);
+  min-width:200px;overflow:hidden;
+  animation:popIn .15s cubic-bezier(.4,0,.2,1);
+  z-index:201;
+}
+.menu-item{
+  padding:13px 16px;cursor:pointer;
+  font-size:13.5px;font-weight:600;color:#1a1a2e;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(0,0,0,0.05);
+  transition:background .1s;
+}
+.menu-item:last-child{border-bottom:none;}
+.menu-item:hover{background:rgba(26,35,126,0.06);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+try {
+  firebase.initializeApp({
+    apiKey:"AIzaSyDw6lVRfXgehqpgvTCobqZZyLAy9alzAU8",
+    authDomain:"sbs-marksheet.firebaseapp.com",
+    projectId:"sbs-marksheet",
+    storageBucket:"sbs-marksheet.firebasestorage.app",
+    messagingSenderId:"1064566048496",
+    appId:"1:1064566048496:web:0b7cf5d4b9fa0bf9dae435"
+  });
+  const db = firebase.firestore();
+  db.settings({cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED});
+  db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+  window._db = db;
+} catch(e){ window._db = null; }
+</script>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useRef,useCallback,useMemo} = React;
+
+/* ─── CONFIG ── */
+const APP_PASSWORD = "sbs2025";
+const LS_AUTH_KEY  = "sbs_auth_v1";
+const LS_KEY       = "sbs_mk_v8";
+
+const isSessionValid = () => {
+  try{ const d=JSON.parse(localStorage.getItem(LS_AUTH_KEY)||"{}"); return d.ok&&(Date.now()-d.t)<8*60*60*1000; }catch{return false;}
+};
+const saveSession  = () => localStorage.setItem(LS_AUTH_KEY,JSON.stringify({ok:true,t:Date.now()}));
+const clearSession = () => localStorage.removeItem(LS_AUTH_KEY);
+
+/* ─── SCHOOL ── */
+const SCHOOL = {
+  name:"SBS SHIKSHA NIKETAN",
+  addr:"Karaspur Prithvipur, Ghazipur, Uttar Pradesh – 233226",
+  logo:"logo.png",
+};
+
+/* ─── FIXED MM: T1=40, T2=60, T3=100 ── */
+const FIXED_MM = {m1:40, m2:60, m3:100};
+
+const DEFAULT_SUBJECTS = ["HINDI","ENGLISH","MATHEMATICS","SCIENCE","SOCIAL SCIENCE","ART AND DRAWING","COMPUTER","G.K."];
+const CLASSES = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+const GENDERS = ["Male","Female","Other"];
+
+const GRADE_TABLE = [
+  {min:91,max:100,g:"A1",l:"Outstanding"},
+  {min:81,max:90, g:"A2",l:"Excellent"},
+  {min:71,max:80, g:"B1",l:"Very Good"},
+  {min:61,max:70, g:"B2",l:"Good"},
+  {min:51,max:60, g:"C1",l:"Average"},
+  {min:41,max:50, g:"C2",l:"Satisfactory"},
+  {min:33,max:40, g:"D", l:"Pass"},
+  {min:0, max:32, g:"E", l:"Fail"},
+];
+const grade      = p => { if(p===null||p===undefined) return "–"; for(const r of GRADE_TABLE) if(p>=r.min&&p<=r.max) return r.g; return "–"; };
+const gradeLabel = p => { if(p===null||p===undefined) return "–"; for(const r of GRADE_TABLE) if(p>=r.min&&p<=r.max) return r.l; return "–"; };
+const gradeColor = p => { if(p===null) return "#888"; if(p>=81) return "#1b5e20"; if(p>=61) return "#1a237e"; if(p>=33) return "#e65100"; return "#c62828"; };
+
+const REMARK_OPTS = [
+  "Excellent performance! Keep up the great work.",
+  "Good effort shown. Focus more on weaker subjects.",
+  "Satisfactory progress. Must work harder next term.",
+  "Very good student. Regular attendance is essential.",
+  "Outstanding achievement. We are proud of you!",
+];
+const ADDR_OPTS = [
+  "Nasiruddinpur, Prithvipur, Ghazipur, U.P. 233226",
+  "Prithvipur, Ghazipur, Uttar Pradesh 233226",
+  "Karaspur, Prithvipur, Ghazipur, U.P. 233226",
+];
+
+/* ─── MATH ── */
+const subObt = s => (parseFloat(s.o1)||0)+(parseFloat(s.o2)||0)+(parseFloat(s.o3)||0);
+const subMM  = () => FIXED_MM.m1 + FIXED_MM.m2 + FIXED_MM.m3; // always 200
+const pct    = (o,m) => m>0 ? parseFloat(((o/m)*100).toFixed(1)) : null;
+function grandTotals(subs){
+  return subs.reduce((a,s)=>({
+    o1:a.o1+(parseFloat(s.o1)||0),
+    o2:a.o2+(parseFloat(s.o2)||0),
+    o3:a.o3+(parseFloat(s.o3)||0),
+    oT:a.oT+subObt(s),
+    mT:a.mT+(FIXED_MM.m1+FIXED_MM.m2+FIXED_MM.m3),
+    m1:a.m1+FIXED_MM.m1, m2:a.m2+FIXED_MM.m2, m3:a.m3+FIXED_MM.m3,
+  }),{o1:0,o2:0,o3:0,oT:0,mT:0,m1:0,m2:0,m3:0});
+}
+
+/* ─── FIREBASE ── */
+const db = window._db;
+const fbSave = async st => {
+  if(!db) throw new Error("No DB");
+  await db.collection("students").doc(String(st.id)).set(st);
+  const bRef = db.collection("backups").doc(String(st.id));
+  const snap = await bRef.get();
+  let vers = snap.exists?(snap.data().v||[]):[];
+  vers = [{...st,_at:new Date().toISOString()},...vers].slice(0,2);
+  await bRef.set({v:vers});
+};
+const fbAll  = async () => { if(!db) throw new Error("No DB"); return (await db.collection("students").get()).docs.map(d=>d.data()); };
+const fbDel  = async id => { if(!db) throw new Error("No DB"); return db.collection("students").doc(String(id)).delete(); };
+const fbBaks = async id => { if(!db) return []; const d=await db.collection("backups").doc(String(id)).get(); return d.exists?(d.data().v||[]): []; };
+
+/* ─── LOCAL STORAGE ── */
+const lsSave = d => { try{localStorage.setItem(LS_KEY,JSON.stringify(d));}catch(e){} };
+const lsLoad = () => { try{ const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):[]; }catch{return[];} };
+
+/* ─── NEW STUDENT ── */
+const newStudent = (cls="",gender="") => ({
+  id:`${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+  name:"",father:"",mother:"",addr:"",gender:gender,
+  roll:"",admno:"",dob:"",cls:cls,sec:"",session:"2025-26",
+  photo:null,
+  att:{p:"",t:""},
+  remark:"",rank:"",printDate:"",
+  subs:DEFAULT_SUBJECTS.map(n=>({n,o1:"",o2:"",o3:""})),
+  cosco:{sports:"",art:"",music:"",disc:"",clean:""},
+  _created:new Date().toISOString(),
+  _updated:new Date().toISOString(),
+});
+
+/* ─── ICONS ── */
+const Icon = {
+  back:   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  plus:   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  print:  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+  trash:  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>,
+  search: <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  upload: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>,
+  hist:   <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>,
+  dots:   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>,
+  eye:    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  results:<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+  logout: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  check:  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
+};
+
+/* ─── TOAST ── */
+function Toast({msg}){ return msg ? <div className="toast no-print">{msg}</div> : null; }
+
+/* ─── LOGIN SCREEN — iOS Style ── */
+function LoginScreen({onLogin, error}){
+  const [pw,setPw]     = useState("");
+  const [show,setShow] = useState(false);
+  const [shake,setShake]=useState(false);
+  const ref = useRef();
+  useEffect(()=>{ setTimeout(()=>ref.current&&ref.current.focus(),400); },[]);
+  const submit = () => {
+    if(!pw.trim()) return;
+    if(!onLogin(pw)){
+      setShake(true); setTimeout(()=>setShake(false),500); setPw("");
+    }
+  };
+  return (
+    <div style={{
+      minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+      background:"linear-gradient(160deg,#0a0a1a,#0d1460,#1a237e)",
+      padding:20,position:"relative",overflow:"hidden",
+    }}>
+      {/* Animated blobs */}
+      {[[300,300,-80,-60,0.06],[200,200,"auto","auto",0.04,{bottom:-60,left:-60}]].map((_,i)=>(
+        <div key={i} style={{
+          position:"fixed",width:320,height:320,borderRadius:"50%",
+          background:`radial-gradient(circle,rgba(100,130,255,${i===0?0.15:0.1}),transparent)`,
+          top:i===0?-80:"auto",right:i===0?-80:"auto",
+          bottom:i===1?-80:"auto",left:i===1?-80:"auto",
+          pointerEvents:"none",
+          animation:`pulse ${2+i}s ease-in-out infinite`,
+        }}/>
+      ))}
+      <div style={{
+        maxWidth:380,width:"100%",textAlign:"center",
+        background:"rgba(255,255,255,0.06)",
+        backdropFilter:"blur(40px)",WebkitBackdropFilter:"blur(40px)",
+        border:"1px solid rgba(255,255,255,0.12)",
+        borderRadius:28,padding:"44px 32px",
+        boxShadow:"0 40px 80px rgba(0,0,0,0.5)",
+        animation:shake?"shakeX 0.4s ease":"slideUp 0.4s cubic-bezier(.4,0,.2,1)",
+      }}>
+        <div style={{
+          width:80,height:80,borderRadius:22,margin:"0 auto 20px",
+          background:"linear-gradient(135deg,#3f51b5,#1a237e)",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:40,boxShadow:"0 12px 36px rgba(63,81,181,0.5)",
+        }}>🏫</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:4}}>
+          SBS Shiksha Niketan
+        </div>
+        <div style={{fontSize:12.5,color:"rgba(255,255,255,0.5)",marginBottom:32,letterSpacing:0.5}}>
+          Marksheet Management System
+        </div>
+        {error && (
+          <div style={{background:"rgba(198,40,40,0.15)",border:"1px solid rgba(198,40,40,0.3)",
+            color:"#ff6b6b",padding:"11px 16px",borderRadius:12,fontSize:13,marginBottom:20}}>
+            ❌ {error}
+          </div>
+        )}
+        <div style={{position:"relative",marginBottom:14}}>
+          <input ref={ref} type={show?"text":"password"} value={pw}
+            onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}
+            placeholder="Password daalen…"
+            style={{
+              width:"100%",padding:"14px 48px 14px 18px",
+              background:"rgba(255,255,255,0.1)",
+              border:"1.5px solid rgba(255,255,255,0.15)",
+              borderRadius:14,fontSize:15,color:"#fff",outline:"none",
+              backdropFilter:"blur(10px)",
+              letterSpacing:show?0:4,
+              transition:"all .2s",
+            }}
+            onFocus={e=>{e.target.style.borderColor="rgba(100,130,255,0.6)"; e.target.style.background="rgba(255,255,255,0.15)";}}
+            onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,0.15)"; e.target.style.background="rgba(255,255,255,0.1)";}}
+          />
+          <button onClick={()=>setShow(s=>!s)} style={{
+            position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",
+            background:"none",border:"none",cursor:"pointer",fontSize:18,color:"rgba(255,255,255,0.5)",
+          }}>{show?"🙈":"👁️"}</button>
+        </div>
+        <button onClick={submit} style={{
+          width:"100%",padding:"15px",fontSize:15,fontWeight:800,
+          background:"linear-gradient(135deg,#3f51b5,#1565c0)",
+          color:"#fff",borderRadius:14,border:"none",cursor:"pointer",
+          boxShadow:"0 8px 24px rgba(63,81,181,0.4)",
+          transition:"all .2s",letterSpacing:0.3,
+        }}
+        onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
+        onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}
+        >
+          🔓 Login Karein
+        </button>
+        <div style={{marginTop:20,fontSize:11,color:"rgba(255,255,255,0.3)"}}>
+          🔒 Authorized access only
+        </div>
+      </div>
+      <style>{`
+        @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+      `}</style>
+    </div>
+  );
+}
+
+/* ─── CLASS+GENDER SELECTOR ── */
+function ClassGenderSelector({onSelect}){
+  const [cls,setCls]       = useState("");
+  const [gender,setGender] = useState("");
+  const canProceed = cls && gender;
+  return (
+    <div style={{
+      minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+      background:"linear-gradient(160deg,#0a0a1a,#0d1460,#1a237e)",
+      padding:20,
+    }}>
+      <div style={{
+        maxWidth:400,width:"100%",
+        background:"rgba(255,255,255,0.07)",
+        backdropFilter:"blur(40px)",WebkitBackdropFilter:"blur(40px)",
+        border:"1px solid rgba(255,255,255,0.12)",
+        borderRadius:28,padding:"40px 28px",
+        boxShadow:"0 40px 80px rgba(0,0,0,0.5)",
+        animation:"slideUp 0.35s cubic-bezier(.4,0,.2,1)",
+      }}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:36,marginBottom:10}}>🎓</div>
+          <div style={{fontSize:20,fontWeight:800,color:"#fff",marginBottom:6}}>Naya Student</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.5)"}}>Pehle class aur gender chunein</div>
+        </div>
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.6)",marginBottom:8,letterSpacing:0.5}}>CLASS CHUNEIN</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {CLASSES.map(c=>(
+              <button key={c} onClick={()=>setCls(c)} style={{
+                padding:"11px 6px",borderRadius:12,border:"none",cursor:"pointer",
+                fontWeight:700,fontSize:14,
+                background:cls===c?"linear-gradient(135deg,#3f51b5,#1565c0)":"rgba(255,255,255,0.08)",
+                color:cls===c?"#fff":"rgba(255,255,255,0.7)",
+                boxShadow:cls===c?"0 4px 16px rgba(63,81,181,0.4)":"none",
+                transition:"all .18s",
+                transform:cls===c?"scale(1.05)":"scale(1)",
+              }}>{c}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:28}}>
+          <div style={{fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.6)",marginBottom:8,letterSpacing:0.5}}>GENDER CHUNEIN</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {GENDERS.map(g=>(
+              <button key={g} onClick={()=>setGender(g)} style={{
+                padding:"12px 8px",borderRadius:12,border:"none",cursor:"pointer",
+                fontWeight:700,fontSize:13,
+                background:gender===g?"linear-gradient(135deg,#7b1fa2,#4a148c)":"rgba(255,255,255,0.08)",
+                color:gender===g?"#fff":"rgba(255,255,255,0.7)",
+                boxShadow:gender===g?"0 4px 16px rgba(123,31,162,0.4)":"none",
+                transition:"all .18s",
+                transform:gender===g?"scale(1.05)":"scale(1)",
+              }}>{g==="Male"?"👦":g==="Female"?"👧":"🧑"} {g}</button>
+            ))}
+          </div>
+        </div>
+
+        <button onClick={()=>canProceed&&onSelect(cls,gender)} style={{
+          width:"100%",padding:"15px",fontSize:15,fontWeight:800,
+          background:canProceed?"linear-gradient(135deg,#3f51b5,#1565c0)":"rgba(255,255,255,0.1)",
+          color:canProceed?"#fff":"rgba(255,255,255,0.3)",
+          borderRadius:14,border:"none",cursor:canProceed?"pointer":"not-allowed",
+          boxShadow:canProceed?"0 8px 24px rgba(63,81,181,0.4)":"none",
+          transition:"all .2s",
+        }}>
+          Aage Badhein →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SYNC BAR ── */
+function SyncBar({status,ts}){
+  const cfg={synced:{c:"#4caf50",t:"Synced ✓"},syncing:{c:"#ff9800",t:"Saving…"},
+    error:{c:"#f44336",t:"Sync error"},offline:{c:"#9e9e9e",t:"Offline"},idle:{c:"#9e9e9e",t:""}};
+  const {c,t}=cfg[status]||cfg.idle;
+  if(!t) return null;
+  return (
+    <div style={{background:"rgba(255,255,255,0.04)",borderBottom:"1px solid rgba(255,255,255,0.06)",
+      padding:"5px 16px",display:"flex",alignItems:"center",gap:7,fontSize:11,color:"rgba(255,255,255,0.5)"}}>
+      <span style={{width:7,height:7,borderRadius:"50%",background:c,display:"inline-block",
+        animation:status==="syncing"?"pulse 1s infinite":""}}/>
+      <span>{t}</span>
+      {ts&&status==="synced"&&<span style={{marginLeft:"auto",opacity:0.4}}>{ts}</span>}
+    </div>
+  );
+}
+
+/* ─── RESULTS VIEWER ── */
+function ResultsViewer({students,onClose,onSelect}){
+  const [q,setQ]=useState("");
+  const [filterCls,setFilterCls]=useState("");
+  const [filterGender,setFilterGender]=useState("");
+  const filtered=useMemo(()=>students.filter(s=>{
+    const matchQ=!q||(s.name||"").toLowerCase().includes(q.toLowerCase())||(s.roll||"").includes(q);
+    const matchCls=!filterCls||s.cls===filterCls;
+    const matchG=!filterGender||s.gender===filterGender;
+    return matchQ&&matchCls&&matchG;
+  }),[students,q,filterCls,filterGender]);
+  return (
+    <div className="fi" style={{paddingBottom:20}}>
+      <div style={{
+        background:"rgba(255,255,255,0.06)",backdropFilter:"blur(20px)",
+        borderBottom:"1px solid rgba(255,255,255,0.08)",
+        padding:"14px 16px",display:"flex",alignItems:"center",gap:10,
+        position:"sticky",top:0,zIndex:60,
+      }}>
+        <button onClick={onClose} className="btn" style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"8px 12px",display:"flex",alignItems:"center"}}>{Icon.back}</button>
+        <span style={{color:"#fff",fontWeight:700,fontSize:15,flex:1}}>📊 Saved Results</span>
+      </div>
+      <div style={{padding:"12px 14px",display:"flex",gap:8,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:140,position:"relative"}}>
+          <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.4)"}}>{Icon.search}</span>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Naam ya roll…"
+            style={{width:"100%",padding:"9px 12px 9px 34px",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,color:"#fff",outline:"none",fontSize:13}}/>
+        </div>
+        <select value={filterCls} onChange={e=>setFilterCls(e.target.value)}
+          style={{padding:"9px 12px",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,color:"#fff",outline:"none",fontSize:13}}>
+          <option value="">All Classes</option>
+          {CLASSES.map(c=><option key={c} value={c}>Class {c}</option>)}
+        </select>
+        <select value={filterGender} onChange={e=>setFilterGender(e.target.value)}
+          style={{padding:"9px 12px",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,color:"#fff",outline:"none",fontSize:13}}>
+          <option value="">All Gender</option>
+          {GENDERS.map(g=><option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+      <div style={{padding:"0 14px",display:"flex",flexDirection:"column",gap:8}}>
+        {filtered.length===0?(
+          <div style={{textAlign:"center",padding:"60px 20px",color:"rgba(255,255,255,0.3)"}}>
+            <div style={{fontSize:40,marginBottom:10}}>📭</div>
+            <div>Koi result nahi mila</div>
+          </div>
+        ):filtered.map(s=>{
+          const g=grandTotals(s.subs);
+          const p=g.mT>0?pct(g.oT,g.mT):null;
+          const pass=p!==null&&p>=33;
+          return (
+            <div key={s.id} onClick={()=>onSelect(s.id)} style={{
+              background:"rgba(255,255,255,0.07)",
+              border:"1px solid rgba(255,255,255,0.1)",
+              borderRadius:16,padding:"13px 15px",
+              display:"flex",alignItems:"center",gap:12,cursor:"pointer",
+              transition:"all .18s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.12)"; e.currentTarget.style.transform="translateY(-1px)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)"; e.currentTarget.style.transform="";}}>
+              <div style={{width:44,height:44,borderRadius:12,overflow:"hidden",
+                background:"linear-gradient(135deg,#3f51b5,#1a237e)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {s.photo?<img src={s.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:<span style={{fontSize:20}}>👤</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,color:"#fff",fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name||"—"}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:2}}>
+                  Class {s.cls||"?"}{s.sec?"-"+s.sec:""} {s.gender?"· "+s.gender:""} {s.roll?"· Roll "+s.roll:""}
+                </div>
+              </div>
+              {p!==null&&(
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontWeight:800,fontSize:16,color:pass?"#69f0ae":"#ff6b6b"}}>{p}%</div>
+                  <div style={{fontSize:11,background:pass?"rgba(105,240,174,0.15)":"rgba(255,107,107,0.15)",
+                    color:pass?"#69f0ae":"#ff6b6b",padding:"2px 8px",borderRadius:20,fontWeight:700}}>{grade(p)}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── DASHBOARD ── */
+function Dashboard({students,onNew,onSelect,syncStatus,syncTs,onLogout,onViewResults}){
+  const [q,setQ]=useState("");
+  const [menuOpen,setMenuOpen]=useState(false);
+  const filtered=useMemo(()=>students.filter(s=>
+    (s.name||"").toLowerCase().includes(q.toLowerCase())||(s.roll||"").includes(q)||(s.cls||"").includes(q)
+  ),[students,q]);
+  const passCount=useMemo(()=>students.filter(s=>{const g=grandTotals(s.subs);return g.mT>0&&pct(g.oT,g.mT)>=33;}).length,[students]);
+  const clsSet=useMemo(()=>new Set(students.map(s=>s.cls).filter(Boolean)),[students]);
+  return (
+    <div className="fi" style={{background:"#0f0f1a",minHeight:"100vh"}}>
+      <SyncBar status={syncStatus} ts={syncTs}/>
+      <div style={{padding:"14px 14px 80px"}}>
+
+        {/* Header */}
+        <div style={{
+          marginBottom:16,borderRadius:24,overflow:"hidden",position:"relative",
+          background:"linear-gradient(150deg,#0d1460,#1a237e,#1565c0)",
+          padding:"22px 18px 20px",
+        }}>
+          <div style={{position:"absolute",width:160,height:160,borderRadius:"50%",
+            background:"rgba(255,255,255,0.05)",top:-50,right:-40,pointerEvents:"none"}}/>
+          <div style={{position:"absolute",width:100,height:100,borderRadius:"50%",
+            background:"rgba(255,255,255,0.04)",bottom:-30,left:-20,pointerEvents:"none"}}/>
+
+          {/* Three dot menu */}
+          <div style={{position:"absolute",top:14,right:14,zIndex:10}}>
+            <button onClick={()=>setMenuOpen(m=>!m)} style={{
+              background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.15)",
+              color:"#fff",borderRadius:10,width:36,height:36,cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              backdropFilter:"blur(10px)",
+            }}>{Icon.dots}</button>
+            {menuOpen&&(
+              <>
+                <div className="menu-overlay" onClick={()=>setMenuOpen(false)}/>
+                <div className="menu-popup">
+                  <div className="menu-item" onClick={()=>{onViewResults();setMenuOpen(false);}}>
+                    {Icon.results} <span>Saved Results Dekhein</span>
+                  </div>
+                  <div className="menu-item" onClick={()=>{handleLogout&&handleLogout();setMenuOpen(false);}} style={{color:"#c62828"}}
+                    onClick={()=>{onLogout();setMenuOpen(false);}}>
+                    {Icon.logout} <span>Logout</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div style={{fontSize:10,letterSpacing:3,color:"rgba(255,255,255,0.45)",fontWeight:700,marginBottom:3}}>SCHOOL MANAGEMENT SYSTEM</div>
+          <div style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1.2,marginBottom:2}}>{SCHOOL.name}</div>
+          <div style={{fontSize:10,color:"#90caf9",marginBottom:16}}>{SCHOOL.addr}</div>
+
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            {[
+              {v:students.length,l:"Students",c:"#fff"},
+              {v:passCount,l:"Passed",c:"#a5d6a7"},
+              {v:clsSet.size,l:"Classes",c:"#ffcc80"},
+              {v:students.length-passCount,l:"Pending",c:"#ef9a9a"},
+            ].map(({v,l,c})=>(
+              <div key={l} style={{background:"rgba(255,255,255,0.1)",backdropFilter:"blur(10px)",
+                border:"1px solid rgba(255,255,255,0.15)",borderRadius:14,padding:"9px 16px",textAlign:"center",minWidth:66}}>
+                <div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Search + New */}
+        <div style={{display:"flex",gap:10,marginBottom:14}}>
+          <div style={{flex:1,position:"relative"}}>
+            <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.3)"}}>{Icon.search}</span>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Naam, class ya roll…"
+              style={{width:"100%",padding:"11px 14px 11px 36px",
+                background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",
+                borderRadius:14,color:"#fff",outline:"none",fontSize:13,
+                transition:"all .2s",}}
+              onFocus={e=>{e.target.style.background="rgba(255,255,255,0.1)"; e.target.style.borderColor="rgba(100,130,255,0.4)";}}
+              onBlur={e=>{e.target.style.background="rgba(255,255,255,0.07)"; e.target.style.borderColor="rgba(255,255,255,0.1)";}}
+            />
+          </div>
+          <button onClick={onNew} className="btn" style={{
+            background:"linear-gradient(135deg,#3f51b5,#1565c0)",color:"#fff",
+            display:"flex",alignItems:"center",gap:7,whiteSpace:"nowrap",
+            boxShadow:"0 4px 16px rgba(63,81,181,0.35)",padding:"11px 18px",
+          }}>
+            {Icon.plus} Naya
+          </button>
+        </div>
+
+        {/* List */}
+        {filtered.length===0?(
+          <div style={{textAlign:"center",padding:"60px 20px",color:"rgba(255,255,255,0.3)"}}>
+            <div style={{fontSize:50,marginBottom:10}}>📋</div>
+            <div style={{fontWeight:600,fontSize:15}}>{q?"Koi student nahi mila":"Abhi koi student nahi"}</div>
+            <div style={{fontSize:12,marginTop:5}}>{q?"Dusra naam try karein":'Naya tap karein'}</div>
+          </div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {filtered.map(s=>{
+              const g=grandTotals(s.subs);
+              const p=g.mT>0?pct(g.oT,g.mT):null;
+              const pass=p!==null&&p>=33;
+              return (
+                <div key={s.id} onClick={()=>onSelect(s.id)} style={{
+                  background:"rgba(255,255,255,0.06)",
+                  border:"1px solid rgba(255,255,255,0.09)",
+                  borderRadius:18,padding:"13px 15px",
+                  display:"flex",alignItems:"center",gap:12,cursor:"pointer",
+                  transition:"all .2s cubic-bezier(.4,0,.2,1)",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.1)"; e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.2)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.06)"; e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow="";}}>
+                  <div style={{width:48,height:48,borderRadius:14,overflow:"hidden",
+                    background:"linear-gradient(135deg,#3f51b5,#1a237e)",flexShrink:0,
+                    display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {s.photo?<img src={s.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:<span style={{fontSize:22}}>👤</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:14,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {s.name||"Naam nahi diya"}
+                    </div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:2}}>
+                      Class <b style={{color:"rgba(255,255,255,0.6)"}}>{s.cls||"?"}{s.sec?"-"+s.sec:""}</b>
+                      {s.gender&&<> · {s.gender}</>}
+                      {s.roll&&<> · Roll <b style={{color:"rgba(255,255,255,0.6)"}}>{s.roll}</b></>}
+                    </div>
+                  </div>
+                  {p!==null&&(
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontWeight:800,fontSize:16,color:pass?"#69f0ae":"#ff6b6b"}}>{p}%</div>
+                      <div style={{fontSize:11,background:pass?"rgba(105,240,174,0.15)":"rgba(255,107,107,0.15)",
+                        color:pass?"#69f0ae":"#ff6b6b",padding:"2px 9px",borderRadius:20,fontWeight:700}}>{grade(p)}</div>
+                    </div>
+                  )}
+                  <div style={{color:"rgba(255,255,255,0.2)"}}>›</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── EDITOR ── */
+function Editor({student,onSave,onBack,onPrint,onDelete,showToast}){
+  const [s,setS]=useState(()=>JSON.parse(JSON.stringify(student)));
+  const [baks,setBaks]=useState([]);
+  const [showBaks,setShowBaks]=useState(false);
+  const [addrOpen,setAddrOpen]=useState(false);
+  const [remOpen,setRemOpen]=useState(false);
+  const photoRef=useRef();
+  const timer=useRef();
+
+  useEffect(()=>{
+    clearTimeout(timer.current);
+    timer.current=setTimeout(()=>onSave(s),1500);
+    return()=>clearTimeout(timer.current);
+  },[s]);
+
+  const upd=(k,v)=>setS(p=>({...p,[k]:v,_updated:new Date().toISOString()}));
+  const updSub=(i,k,v)=>{
+    setS(p=>{const a=[...p.subs];a[i]={...a[i],[k]:v};return{...p,subs:a,_updated:new Date().toISOString()};});
+  };
+  const clamp=(v,max)=>{
+    if(v===""||v==="-") return "";
+    let n=parseFloat(v); if(isNaN(n)) return "";
+    if(n<0) n=0; if(n>max) n=max;
+    return String(Math.round(n*10)/10);
+  };
+  const handlePhoto=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    if(f.size>800000){showToast("⚠️ Image 800KB se zyada hai"); return;}
+    const r=new FileReader();
+    r.onload=ev=>setS(p=>({...p,photo:ev.target.result}));
+    r.readAsDataURL(f);
+  };
+  const loadBaks=async()=>{
+    try{const b=await fbBaks(s.id);setBaks(b);setShowBaks(true);}
+    catch{showToast("⚠️ Backup load nahi hua");}
+  };
+
+  const gt=grandTotals(s.subs);
+  const op=gt.mT>0?pct(gt.oT,gt.mT):null;
+  const pass=op!==null&&op>=33;
+  const attPct=s.att.p&&s.att.t&&parseFloat(s.att.t)>0
+    ?((parseFloat(s.att.p)/parseFloat(s.att.t))*100).toFixed(0)+"%":"";
+  const addrMatches=ADDR_OPTS.filter(a=>a.toLowerCase().includes((s.addr||"").toLowerCase())&&(s.addr||"").length>0);
+
+  const Section=({title,children})=>(
+    <div style={{
+      background:"rgba(255,255,255,0.06)",
+      border:"1px solid rgba(255,255,255,0.09)",
+      borderRadius:20,padding:16,
+    }}>
+      <div style={{fontWeight:700,fontSize:13,marginBottom:12,color:"rgba(255,255,255,0.9)"}}>{title}</div>
+      {children}
+    </div>
+  );
+
+  return (
+    <div className="fi" style={{background:"#0f0f1a",minHeight:"100vh",paddingBottom:90}}>
+      {/* Top bar */}
+      <div style={{
+        background:"rgba(13,20,96,0.9)",backdropFilter:"blur(20px)",
+        borderBottom:"1px solid rgba(255,255,255,0.08)",
+        padding:"12px 14px",display:"flex",alignItems:"center",gap:10,
+        position:"sticky",top:0,zIndex:60,
+      }}>
+        <button onClick={onBack} className="btn" style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"8px 12px",display:"flex",alignItems:"center"}}>{Icon.back}</button>
+        <div style={{flex:1,overflow:"hidden"}}>
+          <div style={{color:"#fff",fontWeight:700,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {s.name||"Naya Student"}
+          </div>
+          <div style={{color:"rgba(255,255,255,0.45)",fontSize:11}}>
+            {s.cls?"Class "+s.cls+(s.sec?"-"+s.sec:""):""}{s.session?" · "+s.session:""}
+          </div>
+        </div>
+        <button onClick={loadBaks} className="btn" style={{background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.8)",padding:"8px 12px",display:"flex",alignItems:"center",gap:5,fontSize:11}}>
+          {Icon.hist}
+        </button>
+        <button onClick={()=>{onSave(s);onPrint(s);}} className="btn" style={{
+          background:"linear-gradient(135deg,#c62828,#e53935)",color:"#fff",
+          display:"flex",alignItems:"center",gap:6,
+          boxShadow:"0 4px 16px rgba(198,40,40,0.35)",
+        }}>
+          {Icon.print} Print
+        </button>
+      </div>
+
+      <div style={{padding:"14px",display:"flex",flexDirection:"column",gap:12}}>
+
+        {/* Score banner */}
+        {op!==null&&(
+          <div style={{
+            background:pass?"linear-gradient(135deg,rgba(46,125,50,0.3),rgba(27,94,32,0.2))":"linear-gradient(135deg,rgba(198,40,40,0.3),rgba(183,28,28,0.2))",
+            border:`1px solid ${pass?"rgba(105,240,174,0.3)":"rgba(255,107,107,0.3)"}`,
+            borderRadius:20,padding:"14px 18px",
+            display:"flex",justifyContent:"space-between",alignItems:"center",
+          }}>
+            <div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontWeight:600}}>Overall Score</div>
+              <div style={{fontSize:22,fontWeight:800,color:pass?"#69f0ae":"#ff6b6b"}}>{gt.oT} / {gt.mT}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:30,fontWeight:900,color:pass?"#69f0ae":"#ff6b6b",lineHeight:1}}>{op}%</div>
+              <div style={{background:pass?"rgba(105,240,174,0.2)":"rgba(255,107,107,0.2)",
+                color:pass?"#69f0ae":"#ff6b6b",padding:"3px 13px",borderRadius:20,fontSize:12,fontWeight:700,marginTop:3}}>
+                {grade(op)} — {gradeLabel(op)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Backups */}
+        {showBaks&&(
+          <Section title="📂 Cloud Backups">
+            <button onClick={()=>setShowBaks(false)} style={{float:"right",background:"none",border:"none",cursor:"pointer",fontSize:18,color:"rgba(255,255,255,0.4)"}}>✕</button>
+            {baks.length===0
+              ?<div style={{color:"rgba(255,255,255,0.3)",fontSize:13}}>Koi backup nahi</div>
+              :baks.map((b,i)=>(
+                <div key={i} style={{border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,padding:"10px 13px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:13,color:"#fff"}}>{i===0?"🕐 Latest":"🕑 Previous"}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.4)"}}>{b._at?new Date(b._at).toLocaleString("en-IN"):""}</div>
+                  </div>
+                  <button onClick={()=>{setS({...b,_updated:new Date().toISOString()});setShowBaks(false);showToast("✅ Restored!");}}
+                    className="btn" style={{background:"rgba(63,81,181,0.3)",color:"#fff",padding:"6px 14px",fontSize:12,border:"1px solid rgba(63,81,181,0.5)"}}>Restore</button>
+                </div>
+              ))
+            }
+          </Section>
+        )}
+
+        {/* Student Info */}
+        <Section title="👤 Student Information">
+          <div style={{display:"flex",gap:12,marginBottom:12}}>
+            <div onClick={()=>photoRef.current.click()} style={{
+              width:80,height:96,border:"2px dashed rgba(100,130,255,0.4)",borderRadius:14,cursor:"pointer",
+              overflow:"hidden",background:"rgba(63,81,181,0.1)",display:"flex",flexDirection:"column",
+              alignItems:"center",justifyContent:"center",flexShrink:0,gap:4,transition:"all .2s",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(100,130,255,0.8)"; e.currentTarget.style.background="rgba(63,81,181,0.2)";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(100,130,255,0.4)"; e.currentTarget.style.background="rgba(63,81,181,0.1)";}}>
+              {s.photo?<img src={s.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
+                :<>{Icon.upload}<span style={{fontSize:10,color:"rgba(255,255,255,0.4)",textAlign:"center"}}>Photo<br/><span style={{fontSize:9}}>max 800KB</span></span></>}
+            </div>
+            <input ref={photoRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
+            <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
+              <input className="inp" placeholder="Student Full Name *" value={s.name} onChange={e=>upd("name",e.target.value)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"9px 14px",fontSize:13,color:"rgba(255,255,255,0.6)"}}>
+                  Class: <strong style={{color:"#fff"}}>{s.cls||"—"}</strong>
+                </div>
+                <input className="inp" placeholder="Section (A/B)" value={s.sec} onChange={e=>upd("sec",e.target.value)}
+                  style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+              </div>
+            </div>
+          </div>
+          {/* Gender display */}
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginBottom:6}}>Gender</div>
+            <div style={{display:"flex",gap:8}}>
+              {GENDERS.map(g=>(
+                <button key={g} onClick={()=>upd("gender",g)} style={{
+                  padding:"7px 16px",borderRadius:10,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                  background:s.gender===g?"linear-gradient(135deg,#7b1fa2,#4a148c)":"rgba(255,255,255,0.07)",
+                  color:s.gender===g?"#fff":"rgba(255,255,255,0.5)",
+                  transition:"all .15s",
+                }}>{g}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[["Father's Name","father"],["Mother's Name","mother"],["Roll No.","roll"],["Admission No.","admno"],["Session","session"]].map(([pl,key])=>(
+              <input key={key} className="inp" placeholder={pl} value={s[key]||""} onChange={e=>upd(key,e.target.value)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+            ))}
+            <input className="inp" type="date" value={s.dob}
+              min="1999-01-01" max={new Date().toISOString().split("T")[0]}
+              onChange={e=>upd("dob",e.target.value)}
+              style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+            <div style={{gridColumn:"span 2",position:"relative"}}>
+              <input className="inp" placeholder="Address" value={s.addr||""}
+                onChange={e=>{upd("addr",e.target.value);setAddrOpen(true);}}
+                onFocus={()=>setAddrOpen(true)} onBlur={()=>setTimeout(()=>setAddrOpen(false),200)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+              {addrOpen&&addrMatches.length>0&&(
+                <div className="sug">
+                  {addrMatches.map((a,i)=><div key={i} className="sug-item" onMouseDown={()=>{upd("addr",a);setAddrOpen(false);}}>📍 {a}</div>)}
+                </div>
+              )}
+            </div>
+          </div>
+        </Section>
+
+        {/* Attendance */}
+        <Section title="📅 Haaziri (Attendance)">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[["Haazir Din","p","e.g. 210"],["Kul Kaarya Diwas","t","e.g. 240"]].map(([lbl,key,ph])=>(
+              <div key={key}>
+                <label style={{fontSize:11,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:4}}>{lbl}</label>
+                <input className="inp" type="number" min="0" placeholder={ph} value={s.att[key]}
+                  onChange={e=>setS(p=>({...p,att:{...p.att,[key]:e.target.value}}))}
+                  style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+              </div>
+            ))}
+          </div>
+          {attPct&&<div style={{marginTop:8,fontSize:12,color:"#69f0ae",fontWeight:600,background:"rgba(105,240,174,0.1)",padding:"7px 12px",borderRadius:10,display:"inline-flex",alignItems:"center",gap:5}}>{Icon.check} Haaziri: {attPct}</div>}
+        </Section>
+
+        {/* Marks — Fixed MM */}
+        <Section title="📊 Marks — T1: 40 | T2: 60 | T3: 100">
+          <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:420}}>
+              <thead>
+                <tr style={{background:"rgba(63,81,181,0.3)"}}>
+                  <th style={{padding:"7px 5px",textAlign:"left",color:"rgba(255,255,255,0.9)",minWidth:85}}>Subject</th>
+                  <th style={{padding:5,color:"#90caf9",fontSize:10}}>T1 /40</th>
+                  <th style={{padding:5,color:"#90caf9",fontSize:10}}>T2 /60</th>
+                  <th style={{padding:5,color:"#90caf9",fontSize:10}}>T3 /100</th>
+                  <th style={{padding:5,color:"#ff8a80",fontSize:10}}>Total</th>
+                  <th style={{padding:5,color:"#b9f6ca",fontSize:10}}>%</th>
+                  <th style={{padding:5,color:"#ea80fc",fontSize:10}}>Grade</th>
+                  <th style={{width:22}}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.subs.map((sub,i)=>{
+                  const tot=subObt(sub);
+                  const mm=FIXED_MM.m1+FIXED_MM.m2+FIXED_MM.m3;
+                  const p=pct(tot,mm);
+                  const pass=p!==null&&p>=33;
+                  return (
+                    <tr key={i} style={{borderBottom:"1px solid rgba(255,255,255,0.05)",background:i%2===0?"rgba(255,255,255,0.02)":"transparent"}}>
+                      <td style={{padding:"3px 2px"}}>
+                        <input className="mi" style={{textAlign:"left",fontWeight:600,minWidth:80,background:"rgba(255,255,255,0.07)",color:"#fff",border:"1px solid rgba(255,255,255,0.1)"}}
+                          value={sub.n} onChange={e=>updSub(i,"n",e.target.value)} placeholder="Subject"/>
+                      </td>
+                      <td style={{padding:"3px 2px"}}><input className="mi" style={{width:38,background:"rgba(63,81,181,0.15)",color:"#fff",border:"1px solid rgba(63,81,181,0.3)"}} value={sub.o1} onChange={e=>updSub(i,"o1",clamp(e.target.value,40))} placeholder="—"/></td>
+                      <td style={{padding:"3px 2px"}}><input className="mi" style={{width:38,background:"rgba(63,81,181,0.15)",color:"#fff",border:"1px solid rgba(63,81,181,0.3)"}} value={sub.o2} onChange={e=>updSub(i,"o2",clamp(e.target.value,60))} placeholder="—"/></td>
+                      <td style={{padding:"3px 2px"}}><input className="mi" style={{width:38,background:"rgba(63,81,181,0.15)",color:"#fff",border:"1px solid rgba(63,81,181,0.3)"}} value={sub.o3} onChange={e=>updSub(i,"o3",clamp(e.target.value,100))} placeholder="—"/></td>
+                      <td style={{padding:"3px 4px",fontWeight:700,color:"#ff8a80",textAlign:"center"}}>{mm>0?tot:""}</td>
+                      <td style={{padding:"3px 4px",textAlign:"center",fontWeight:600,color:pass?"#69f0ae":"#ff6b6b",fontSize:10}}>{p!==null?p+"%":""}</td>
+                      <td style={{padding:"3px 4px",textAlign:"center"}}>
+                        {p!==null&&<span style={{background:pass?"rgba(105,240,174,0.2)":"rgba(255,107,107,0.2)",color:pass?"#69f0ae":"#ff6b6b",padding:"1px 6px",borderRadius:8,fontSize:10,fontWeight:700}}>{grade(p)}</span>}
+                      </td>
+                      <td><button onClick={()=>setS(p=>({...p,subs:p.subs.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,107,107,0.6)",padding:2}}>{Icon.trash}</button></td>
+                    </tr>
+                  );
+                })}
+                <tr style={{background:"rgba(63,81,181,0.2)",fontWeight:800,fontSize:11}}>
+                  <td style={{padding:"6px 5px",color:"#fff"}}>TOTAL</td>
+                  <td style={{textAlign:"center",color:"#90caf9"}}>{gt.o1}</td>
+                  <td style={{textAlign:"center",color:"#90caf9"}}>{gt.o2}</td>
+                  <td style={{textAlign:"center",color:"#90caf9"}}>{gt.o3}</td>
+                  <td style={{textAlign:"center",color:"#ff8a80"}}>{gt.oT}/{gt.mT}</td>
+                  <td style={{textAlign:"center",color:pass?"#69f0ae":"#ff6b6b"}}>{op!==null?op+"%":""}</td>
+                  <td style={{textAlign:"center"}}><span style={{background:"rgba(63,81,181,0.4)",color:"#fff",padding:"1px 7px",borderRadius:8,fontSize:10}}>{op!==null?grade(op):""}</span></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button onClick={()=>setS(p=>({...p,subs:[...p.subs,{n:"",o1:"",o2:"",o3:""}]}))} className="btn"
+            style={{marginTop:10,background:"rgba(63,81,181,0.2)",color:"rgba(255,255,255,0.8)",border:"1px solid rgba(63,81,181,0.3)",fontSize:12,padding:"7px 16px"}}>
+            + Subject Add Karein
+          </button>
+        </Section>
+
+        {/* Co-Scholastic */}
+        <Section title="🎨 Co-Scholastic Activities">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[["sports","⚽ Sports & Games"],["art","🎨 Art & Craft"],["music","🎵 Music & Dance"],["disc","📐 Discipline"],["clean","✨ Cleanliness"]].map(([k,lbl])=>(
+              <div key={k}>
+                <label style={{fontSize:11,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:3}}>{lbl}</label>
+                <select className="inp" value={s.cosco[k]} onChange={e=>setS(p=>({...p,cosco:{...p.cosco,[k]:e.target.value}}))}
+                  style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}>
+                  <option value="">— Chunein —</option>
+                  {["A+","A","B+","B","C"].map(g=><option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        {/* Remarks & Result */}
+        <Section title="✏️ Remarks & Result">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div>
+              <label style={{fontSize:11,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:4}}>Class Rank</label>
+              <input className="inp" placeholder="e.g. 3" value={s.rank||""} onChange={e=>upd("rank",e.target.value)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:4}}>Print Date</label>
+              <input className="inp" type="date" value={s.printDate||""} onChange={e=>upd("printDate",e.target.value)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+            </div>
+          </div>
+          <label style={{fontSize:11,color:"rgba(255,255,255,0.4)",display:"block",marginBottom:4}}>Teacher's Remark</label>
+          <div style={{position:"relative"}}>
+            <textarea className="inp" rows={2} value={s.remark||""} placeholder="Remark likhein ya neeche se chunein…"
+              onChange={e=>upd("remark",e.target.value)}
+              onFocus={()=>setRemOpen(true)} onBlur={()=>setTimeout(()=>setRemOpen(false),200)}
+              style={{resize:"none",background:"rgba(255,255,255,0.08)",border:"1.5px solid rgba(255,255,255,0.12)",color:"#fff"}}/>
+            {remOpen&&(
+              <div className="sug">
+                {REMARK_OPTS.map((r,i)=>(
+                  <div key={i} className="sug-item" onMouseDown={()=>{upd("remark",r);setRemOpen(false);}}>💬 {r}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <button onClick={onDelete} className="btn" style={{width:"100%",background:"rgba(198,40,40,0.1)",color:"#ff6b6b",border:"1px solid rgba(198,40,40,0.3)",fontSize:13,padding:12}}>
+          🗑️ Delete Student
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── PRINT VIEW ── */
+function PrintView({student:s, onClose}){
+  const gt=grandTotals(s.subs);
+  const op=gt.mT>0?pct(gt.oT,gt.mT):null;
+  const attDisp=s.att.p&&s.att.t&&parseFloat(s.att.t)>0
+    ?((parseFloat(s.att.p)/parseFloat(s.att.t))*100).toFixed(0)+"%"
+    :(s.att.p?s.att.p+" din":"");
+  const t1p=gt.m1>0?((gt.o1/gt.m1)*100).toFixed(0)+"%":"";
+  const t2p=gt.m2>0?((gt.o2/gt.m2)*100).toFixed(0)+"%":"";
+  const t3p=gt.m3>0?((gt.o3/gt.m3)*100).toFixed(0)+"%":"";
+  const border="1px solid #000";
+  const headerBg="#fce4d6";
+  const infoTeal="#d1eeee";
+
+  // Format print date
+  const printDateStr = s.printDate
+    ? new Date(s.printDate).toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"})
+    : "";
+
+  return (
+    <div className="fi">
+      {/* Controls */}
+      <div className="no-print" style={{background:"#1a237e",padding:"12px 15px",display:"flex",alignItems:"center",gap:10,position:"sticky",top:0,zIndex:60}}>
+        <button onClick={onClose} className="btn" style={{background:"rgba(255,255,255,.15)",color:"#fff",display:"flex",alignItems:"center",gap:6}}>{Icon.back} Back</button>
+        <div style={{flex:1,color:"#fff",fontWeight:600,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name} — Preview</div>
+        <button onClick={()=>window.print()} className="btn" style={{background:"#c62828",color:"#fff",display:"flex",alignItems:"center",gap:6}}>{Icon.print} Print / PDF</button>
+      </div>
+      <div className="no-print" style={{background:"#fff8e1",padding:"7px 15px",fontSize:12,color:"#e65100",textAlign:"center"}}>
+        💡 Chrome → Print → Margins: None → Background graphics: ON → Save as PDF
+      </div>
+
+      {/* A4 MARKSHEET */}
+      <div id="MARKSHEET" style={{
+        width:"210mm",height:"297mm",background:"white",margin:"0 auto",
+        padding:"2.5mm",boxSizing:"border-box",overflow:"hidden",
+        fontFamily:"Arial,Helvetica,sans-serif",display:"flex",flexDirection:"column",
+      }}>
+        <div style={{border:"3.5px solid #c62828",flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{border:"1px solid #000",margin:"2px",flex:1,padding:"5px 7px",
+            display:"flex",flexDirection:"column",overflow:"hidden"}}>
+
+            {/* HEADER */}
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              {/* Logo no border */}
+              <div style={{width:92,height:92,overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:2}}>
+                <img src={SCHOOL.logo} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}}
+                  onError={e=>{e.target.style.display="none";}}/>
+              </div>
+              <div style={{flex:1,textAlign:"center",padding:"0 4px"}}>
+                <div style={{fontSize:26,fontWeight:900,color:"#c62828",fontFamily:'"Times New Roman",Times,serif',textTransform:"uppercase",letterSpacing:0.5,lineHeight:1.1}}>
+                  {SCHOOL.name}
+                </div>
+                <div style={{fontSize:11,fontWeight:600,color:"#333",marginTop:2,letterSpacing:0.3}}>
+                  {SCHOOL.addr}
+                </div>
+                <div style={{display:"inline-block",background:"linear-gradient(90deg,#fff3e0,#ffff00,#fff3e0)",
+                  color:"#b71c1c",padding:"3px 22px",fontWeight:900,fontSize:12,
+                  border:"1.2px solid #c62828",borderRadius:2,
+                  textDecoration:"underline",marginTop:5,marginBottom:4,letterSpacing:0.5}}>
+                  PROGRESS EVALUATION REPORT
+                </div>
+                <div style={{fontSize:10.5,fontWeight:700,color:"#1a237e",lineHeight:1.5}}>
+                  ACADEMIC SESSION :&nbsp;
+                  <span style={{color:"#000",fontFamily:'"Times New Roman",serif',fontWeight:900}}>{s.session}</span>
+                </div>
+                <div style={{fontSize:13,fontWeight:900,color:"#000",fontFamily:'"Times New Roman",Times,serif',lineHeight:1.3}}>
+                  CLASS :&nbsp;{s.cls}{s.sec?"-"+s.sec:""}
+                </div>
+              </div>
+              {/* Photo — lower and left */}
+              <div style={{width:74,height:90,border:"1.5px solid #555",overflow:"hidden",flexShrink:0,
+                background:"#f0f0f0",display:"flex",alignItems:"center",justifyContent:"center",
+                marginTop:18,marginRight:3,boxShadow:"1px 1px 4px rgba(0,0,0,0.12)"}}>
+                {s.photo?<img src={s.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
+                  :<div style={{textAlign:"center"}}><div style={{fontSize:18,color:"#bbb"}}>👤</div><span style={{fontSize:7,color:"#bbb"}}>Student<br/>Photo</span></div>}
+              </div>
+            </div>
+
+            {/* STUDENT INFO — no divider line, gender added */}
+            <div style={{background:infoTeal,borderTop:"2px solid #000",borderBottom:"2px solid #000",
+              padding:"6px 9px",fontFamily:'"Times New Roman",Times,serif',fontSize:10,fontWeight:700,marginBottom:5}}>
+              <div style={{display:"grid",gridTemplateColumns:"57% 43%"}}>
+                <div style={{display:"flex",flexDirection:"column",gap:3.5,paddingRight:8}}>
+                  {[
+                    ["STUDENT'S NAME",(s.name||"").toUpperCase()],
+                    ["MOTHER'S NAME", (s.mother||"").toUpperCase()],
+                    ["FATHER'S NAME", (s.father||"").toUpperCase()],
+                    ["GENDER",        (s.gender||"").toUpperCase()],
+                    ["ADDRESS",       (s.addr||"").toUpperCase()],
+                  ].map(([label,val])=>(
+                    <div key={label} style={{display:"flex",alignItems:"flex-start",minHeight:15}}>
+                      <span style={{width:115,flexShrink:0,fontSize:9.5,fontWeight:700}}>{label}</span>
+                      <span style={{marginRight:4,fontWeight:900}}>:</span>
+                      <span style={{flex:1,fontSize:9.5,wordBreak:"break-word",lineHeight:1.3}}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:3.5,paddingLeft:9}}>
+                  {[
+                    ["ROLL NO.",      s.roll||""],
+                    ["ADMISSION NO.", s.admno||""],
+                    ["DATE OF BIRTH", s.dob||""],
+                  ].map(([label,val])=>(
+                    <div key={label} style={{display:"flex",alignItems:"center",minHeight:15}}>
+                      <span style={{width:105,flexShrink:0,fontSize:9.5,fontWeight:700}}>{label}</span>
+                      <span style={{marginRight:4,fontWeight:900}}>:</span>
+                      <span style={{fontSize:9.5,fontWeight:900}}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* MARKS TABLE */}
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:9.5,tableLayout:"fixed",marginBottom:5}}>
+              <colgroup>
+                <col style={{width:"21%"}}/>
+                <col style={{width:"5.5%"}}/><col style={{width:"8%"}}/>
+                <col style={{width:"5.5%"}}/><col style={{width:"8%"}}/>
+                <col style={{width:"5.5%"}}/><col style={{width:"8%"}}/>
+                <col style={{width:"5.5%"}}/><col style={{width:"9%"}}/>
+                <col style={{width:"7%"}}/>
+              </colgroup>
+              <thead>
+                <tr style={{background:headerBg,height:24}}>
+                  <th rowSpan={2} style={{border,textAlign:"left",paddingLeft:4,fontWeight:800,fontSize:10,verticalAlign:"middle"}}>SUBJECTS</th>
+                  <th colSpan={2} style={{border,color:"#1a237e",fontWeight:700,fontSize:9,textAlign:"center"}}>FIRST TERM (40)</th>
+                  <th colSpan={2} style={{border,color:"#1a237e",fontWeight:700,fontSize:9,textAlign:"center"}}>SECOND TERM (60)</th>
+                  <th colSpan={2} style={{border,color:"#1a237e",fontWeight:700,fontSize:9,textAlign:"center"}}>THIRD TERM (100)</th>
+                  <th colSpan={2} style={{border,color:"#1a237e",fontWeight:700,fontSize:9,textAlign:"center"}}>GRAND TOTAL</th>
+                  <th rowSpan={2} style={{border,fontWeight:700,fontSize:9,textAlign:"center",verticalAlign:"middle"}}>GRADE</th>
+                </tr>
+                <tr style={{background:headerBg,height:18}}>
+                  {["MM","MARKS OBT","MM","MARKS OBT","MM","MARKS OBT","MM","TOTAL"].map((h,i)=>(
+                    <th key={i} style={{border,color:i%2===0?"#0070c0":"#222",fontWeight:700,fontSize:8,textAlign:"center",padding:"1px"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {s.subs.map((sub,i)=>{
+                  const tot=subObt(sub);
+                  const p=pct(tot,200);
+                  const pass=p!==null&&p>=33;
+                  return (
+                    <tr key={i} style={{height:23,background:i%2===0?"#fff":"#f7f7fc"}}>
+                      <td style={{border,paddingLeft:4,fontWeight:700,textTransform:"uppercase",fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sub.n}</td>
+                      <td style={{border,textAlign:"center",color:"#0070c0",fontWeight:700,fontSize:9}}>{FIXED_MM.m1}</td>
+                      <td style={{border,textAlign:"center",fontWeight:600}}>{sub.o1}</td>
+                      <td style={{border,textAlign:"center",color:"#0070c0",fontWeight:700,fontSize:9}}>{FIXED_MM.m2}</td>
+                      <td style={{border,textAlign:"center",fontWeight:600}}>{sub.o2}</td>
+                      <td style={{border,textAlign:"center",color:"#0070c0",fontWeight:700,fontSize:9}}>{FIXED_MM.m3}</td>
+                      <td style={{border,textAlign:"center",fontWeight:600}}>{sub.o3}</td>
+                      <td style={{border,textAlign:"center",color:"#0070c0",fontWeight:700,fontSize:9}}>200</td>
+                      <td style={{border,textAlign:"center",fontWeight:800}}>{tot||""}</td>
+                      <td style={{border,textAlign:"center",fontWeight:900,fontSize:10,color:p!==null&&p<33?"#c62828":"#1a237e"}}>{p!==null?grade(p):""}</td>
+                    </tr>
+                  );
+                })}
+                <tr style={{background:"#e8eaf6",fontWeight:800,height:24,fontSize:9.5}}>
+                  <td style={{border,paddingLeft:4,fontWeight:900}}>TOTAL</td>
+                  <td style={{border,textAlign:"center",color:"#0070c0"}}>{gt.m1}</td>
+                  <td style={{border,textAlign:"center"}}>{gt.o1||""}</td>
+                  <td style={{border,textAlign:"center",color:"#0070c0"}}>{gt.m2}</td>
+                  <td style={{border,textAlign:"center"}}>{gt.o2||""}</td>
+                  <td style={{border,textAlign:"center",color:"#0070c0"}}>{gt.m3}</td>
+                  <td style={{border,textAlign:"center"}}>{gt.o3||""}</td>
+                  <td style={{border,textAlign:"center",color:"#0070c0"}}>{gt.mT}</td>
+                  <td style={{border,textAlign:"center",fontWeight:900}}>{gt.oT}</td>
+                  <td style={{border}}></td>
+                </tr>
+                <tr style={{background:"#e8eaf6",fontWeight:800,height:24,fontSize:9.5}}>
+                  <td style={{border,paddingLeft:4,fontWeight:900}}>PERCENTAGE</td>
+                  <td colSpan={2} style={{border,textAlign:"center"}}>{t1p}</td>
+                  <td colSpan={2} style={{border,textAlign:"center"}}>{t2p}</td>
+                  <td colSpan={2} style={{border,textAlign:"center"}}>{t3p}</td>
+                  <td colSpan={2} style={{border,textAlign:"center",fontSize:12,fontWeight:900}}>{op!==null?op+"%":""}</td>
+                  <td style={{border,textAlign:"center",fontWeight:900,fontSize:11,color:"#1a237e"}}>{grade(op)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* CO-SCHOLASTIC */}
+            <div style={{marginBottom:5}}>
+              <div style={{background:headerBg,fontWeight:700,fontSize:9,padding:"3px 6px",border,
+                display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"none"}}>
+                <span>Co-Scholastic Area</span>
+                <span style={{fontSize:8}}>A+:Outstanding · A:Excellent · B+:Very Good · B:Good · C:Average</span>
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:9}}>
+                <tbody>
+                  <tr style={{height:22}}>
+                    {[["Sports & Games","sports"],["Art & Craft","art"],["Music & Dance","music"],["Discipline","disc"],["Cleanliness","clean"]].map(([lbl,k])=>(
+                      <React.Fragment key={k}>
+                        <td style={{border,padding:"2px 5px",fontWeight:700,background:"#fafafa",fontSize:9}}>{lbl}</td>
+                        <td style={{border,textAlign:"center",fontWeight:900,color:"#1a237e",width:"5%",fontSize:10.5}}>{s.cosco[k]||""}</td>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* GRADE SCALE — highlight current grade */}
+            <div style={{display:"flex",border,height:24,fontSize:8,marginBottom:6}}>
+              <div style={{background:"#4a4a4a",color:"#fff",width:"12%",display:"flex",
+                alignItems:"center",justifyContent:"center",textAlign:"center",
+                padding:"0 3px",lineHeight:1.3,fontSize:7.5,fontWeight:700}}>GRADE<br/>SCALE</div>
+              <div style={{flex:1,display:"flex"}}>
+                {GRADE_TABLE.map((r,i)=>{
+                  const isActive = op!==null && op>=r.min && op<=r.max;
+                  return (
+                    <div key={i} style={{
+                      flex:1,
+                      background:isActive?"#1a237e":"#dbe5f1",
+                      color:isActive?"#fff":"#333",
+                      borderLeft:"1px solid rgba(255,255,255,0.8)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontWeight:isActive?900:700,fontSize:7.5,textAlign:"center",lineHeight:1.2,
+                      transition:"all .2s",
+                    }}>
+                      {r.min===0?"00":r.min}–{r.max}<br/>{r.g}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* RANK — centre above remark/attendance */}
+            <div style={{textAlign:"center",marginBottom:4}}>
+              <span style={{fontSize:10,fontWeight:800,color:"#1a237e"}}>Class Rank : </span>
+              <span style={{fontSize:11,fontWeight:900,borderBottom:"1.5px solid #333",paddingBottom:1,minWidth:50,display:"inline-block",textAlign:"center"}}>{s.rank||""}</span>
+            </div>
+
+            {/* REMARK + ATTENDANCE in one row */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+              background:"#f8f8ff",border:"1px solid #c5cae9",borderRadius:3,
+              padding:"6px 12px",marginBottom:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}>
+                <span style={{fontSize:10,fontWeight:800,color:"#1a237e",whiteSpace:"nowrap"}}>Remark :</span>
+                <span style={{flex:1,borderBottom:"1.5px solid #333",paddingBottom:1,
+                  fontSize:9.5,lineHeight:1.4,wordBreak:"break-word",color:"#111",minWidth:80}}>{s.remark||""}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:5,marginLeft:16,flexShrink:0}}>
+                <span style={{fontSize:10,fontWeight:800,color:"#1a237e",whiteSpace:"nowrap"}}>Attendance :</span>
+                <span style={{borderBottom:"1.5px solid #333",minWidth:44,textAlign:"center",
+                  paddingBottom:1,fontSize:11,fontWeight:900,color:"#2e7d32"}}>{attDisp}</span>
+              </div>
+            </div>
+
+            {/* SPACER — pushes signatures to bottom */}
+            <div style={{flex:1}}/>
+
+            {/* SIGNATURES — bottom, dotted line */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",padding:"0 16px 4px"}}>
+              {/* Date */}
+              <div style={{textAlign:"center",minWidth:110}}>
+                <div style={{fontSize:10,fontWeight:600,marginBottom:3}}>{printDateStr}</div>
+                <div style={{borderTop:"2px dotted #555",width:110,marginBottom:3}}></div>
+                <div style={{fontSize:10,fontWeight:700}}>Date</div>
+              </div>
+              {/* Class Teacher */}
+              <div style={{textAlign:"center",minWidth:120}}>
+                <div style={{borderTop:"2px dotted #555",width:130,marginBottom:3}}></div>
+                <div style={{fontSize:10,fontWeight:700}}>Class Teacher</div>
+              </div>
+              {/* Principal */}
+              <div style={{textAlign:"center",minWidth:120}}>
+                <div style={{width:130,height:36,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:0}}>
+                  <img src="principal_sign.png" alt="" style={{maxHeight:"100%",maxWidth:"100%",objectFit:"contain"}}
+                    onError={e=>e.target.style.display="none"}/>
+                </div>
+                <div style={{borderTop:"2px dotted #555",width:130,marginBottom:3}}></div>
+                <div style={{fontSize:10,fontWeight:700}}>Principal</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── LIVE PREVIEW ── */
+function LivePreview({student:s}){
+  if(!s) return (
+    <div style={{color:"rgba(255,255,255,0.3)",textAlign:"center",marginTop:80}}>
+      <div style={{fontSize:50,marginBottom:12}}>📄</div>
+      <div style={{fontSize:13}}>Student select karein preview ke liye</div>
+    </div>
+  );
+  const SCALE="0.5";
+  const gt=grandTotals(s.subs);
+  const op=gt.mT>0?pct(gt.oT,gt.mT):null;
+  const border="1px solid #000";
+  const headerBg="#fce4d6";
+  const infoTeal="#d1eeee";
+  return (
+    <div style={{transformOrigin:"top center",transform:`scale(${SCALE})`,
+      width:"210mm",marginBottom:`calc((${SCALE} - 1) * 297mm)`,
+      background:"white",padding:"2.5mm",boxSizing:"border-box",
+      fontFamily:"Arial,sans-serif",height:"297mm",overflow:"hidden",
+      boxShadow:"0 20px 60px rgba(0,0,0,0.4)",borderRadius:4,
+    }}>
+      <div style={{border:"3.5px solid #c62828",height:"100%",display:"flex",flexDirection:"column"}}>
+        <div style={{border:"1px solid #000",margin:"2px",flex:1,padding:"5px 7px",display:"flex",flexDirection:"column"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+            <div style={{width:80,height:80,overflow:"hidden",flexShrink:0}}>
+              <img src={SCHOOL.logo} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}} onError={e=>e.target.style.display="none"}/>
+            </div>
+            <div style={{flex:1,textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:900,color:"#c62828",fontFamily:'"Times New Roman",serif',textTransform:"uppercase"}}>{SCHOOL.name}</div>
+              <div style={{fontSize:9,color:"#333",marginTop:2}}>{SCHOOL.addr}</div>
+              <div style={{display:"inline-block",background:"#ffff00",color:"#c62828",padding:"2px 14px",fontWeight:900,fontSize:10,marginTop:4,marginBottom:3}}>PROGRESS EVALUATION REPORT</div>
+              <div style={{fontSize:10,fontWeight:700,color:"#000"}}>CLASS : {s.cls}{s.sec?"-"+s.sec:""} &nbsp;|&nbsp; {s.session}</div>
+            </div>
+            <div style={{width:66,height:80,border:"1px solid #555",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",marginTop:14}}>
+              {s.photo?<img src={s.photo} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:<span style={{fontSize:7,color:"#bbb",textAlign:"center"}}>Photo</span>}
+            </div>
+          </div>
+          <div style={{background:infoTeal,borderTop:"1.5px solid #000",borderBottom:"1.5px solid #000",padding:"4px 7px",fontSize:9,marginBottom:4}}>
+            {[["STUDENT'S NAME",(s.name||"").toUpperCase()],["GENDER",(s.gender||"").toUpperCase()],["FATHER'S NAME",(s.father||"").toUpperCase()]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",minHeight:14}}><span style={{width:100,fontWeight:700}}>{l}</span><span style={{marginRight:3}}>:</span><span>{v}</span></div>
+            ))}
+          </div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:8,tableLayout:"fixed",marginBottom:4}}>
+            <thead>
+              <tr style={{background:headerBg}}>
+                <th style={{border,padding:"2px 3px",textAlign:"left"}}>SUBJECT</th>
+                <th style={{border,padding:"2px",textAlign:"center",color:"#1a237e"}}>T1/40</th>
+                <th style={{border,padding:"2px",textAlign:"center",color:"#1a237e"}}>T2/60</th>
+                <th style={{border,padding:"2px",textAlign:"center",color:"#1a237e"}}>T3/100</th>
+                <th style={{border,padding:"2px",textAlign:"center",color:"#c62828"}}>TOTAL</th>
+                <th style={{border,padding:"2px",textAlign:"center"}}>GRADE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.subs.map((sub,i)=>{
+                const tot=subObt(sub);
+                const p=pct(tot,200);
+                return (
+                  <tr key={i} style={{height:18,background:i%2===0?"#fff":"#f9f9f9"}}>
+                    <td style={{border,paddingLeft:3,fontSize:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}}>{sub.n}</td>
+                    <td style={{border,textAlign:"center"}}>{sub.o1}</td>
+                    <td style={{border,textAlign:"center"}}>{sub.o2}</td>
+                    <td style={{border,textAlign:"center"}}>{sub.o3}</td>
+                    <td style={{border,textAlign:"center",fontWeight:700}}>{tot||""}</td>
+                    <td style={{border,textAlign:"center",fontWeight:700,color:p!==null&&p<33?"#c62828":"#1a237e"}}>{p!==null?grade(p):""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {op!==null&&<div style={{textAlign:"center",fontSize:14,fontWeight:900,color:op>=33?"#1b5e20":"#c62828",padding:"4px 0"}}>{op}% — {grade(op)} — {gradeLabel(op)}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── APP ── */
+function App(){
+  const [screen,setScreen]         = useState("dash");
+  const [students,setStudents]     = useState([]);
+  const [activeId,setActiveId]     = useState(null);
+  const [printSt,setPrintSt]       = useState(null);
+  const [prevSt,setPrevSt]         = useState(null);
+  const [toastMsg,setToastMsg]     = useState("");
+  const [syncStatus,setSyncStatus] = useState("idle");
+  const [syncTs,setSyncTs]         = useState("");
+  const [loaded,setLoaded]         = useState(false);
+  const [isDesktop,setIsDesktop]   = useState(window.innerWidth>=900);
+  const [loggedIn,setLoggedIn]     = useState(()=>isSessionValid());
+  const [authError,setAuthError]   = useState("");
+  const [showClassSelector,setShowClassSelector] = useState(false);
+
+  useEffect(()=>{
+    const h=()=>setIsDesktop(window.innerWidth>=900);
+    window.addEventListener("resize",h);
+    return()=>window.removeEventListener("resize",h);
+  },[]);
+
+  const handleLogin=pw=>{
+    if(pw===APP_PASSWORD){saveSession();setLoggedIn(true);setAuthError("");return true;}
+    setAuthError("Galat password!"); return false;
+  };
+  const handleLogout=()=>{
+    if(window.confirm("Logout karna chahte hain?")){
+      clearSession();setLoggedIn(false);setStudents([]);setLoaded(false);setScreen("dash");
+    }
+  };
+  const showToast=useCallback(msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(""),2800);},[]);
+
+  useEffect(()=>{
+    if(!loggedIn) return;
+    setSyncStatus("syncing");
+    fbAll().then(data=>{
+      setStudents(data.length>0?data:lsLoad());
+      setSyncStatus("synced");setSyncTs(new Date().toLocaleTimeString("en-IN"));setLoaded(true);
+    }).catch(()=>{setStudents(lsLoad());setSyncStatus("offline");setLoaded(true);showToast("📴 Offline mode");});
+  },[loggedIn]);
+
+  useEffect(()=>{if(loaded) lsSave(students);},[students,loaded]);
+
+  const handleSave=useCallback(async updated=>{
+    setStudents(prev=>prev.map(s=>s.id===updated.id?updated:s));
+    lsSave(students.map(s=>s.id===updated.id?updated:s));
+    setPrevSt(updated);setSyncStatus("syncing");
+    try{await fbSave(updated);setSyncStatus("synced");setSyncTs(new Date().toLocaleTimeString("en-IN"));}
+    catch{setSyncStatus("error");showToast("⚠️ Offline save");}
+  },[students]);
+
+  const handleNew=()=>setShowClassSelector(true);
+
+  const handleClassSelected=(cls,gender)=>{
+    setShowClassSelector(false);
+    const st=newStudent(cls,gender);
+    setStudents(p=>[...p,st]);
+    setActiveId(st.id);setPrevSt(st);setScreen("editor");
+    fbSave(st).catch(()=>{});
+  };
+
+  const handleSelect=id=>{
+    setActiveId(id);const st=students.find(s=>s.id===id);setPrevSt(st);setScreen("editor");
+  };
+  const handleDelete=async()=>{
+    if(!window.confirm("Delete karein?")) return;
+    const next=students.filter(s=>s.id!==activeId);
+    setStudents(next);lsSave(next);setPrevSt(null);
+    try{await fbDel(activeId);}catch{}
+    setScreen("dash");showToast("🗑️ Deleted");
+  };
+
+  if(!loggedIn) return <LoginScreen onLogin={handleLogin} error={authError}/>;
+  if(showClassSelector) return <ClassGenderSelector onSelect={handleClassSelected}/>;
+  if(!loaded) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",
+      flexDirection:"column",gap:16,background:"linear-gradient(160deg,#0a0a1a,#1a237e)"}}>
+      <div style={{fontSize:52}}>🏫</div>
+      <div style={{fontWeight:900,color:"#fff",fontSize:18,fontFamily:"'Playfair Display',serif"}}>{SCHOOL.name}</div>
+      <div style={{color:"rgba(255,255,255,0.5)",fontSize:13,display:"flex",alignItems:"center",gap:9}}>
+        <span style={{width:8,height:8,borderRadius:"50%",background:"#fb8c00",display:"inline-block",animation:"pulse 1.1s infinite"}}/>
+        Loading…
+      </div>
+    </div>
+  );
+
+  const activeStudent=students.find(s=>s.id===activeId);
+
+  return (
+    <div className={isDesktop?"shell":""}>
+      <div className={isDesktop?"left-pane":""}>
+        {screen==="dash"&&(
+          <Dashboard students={students} onNew={handleNew} onSelect={handleSelect}
+            syncStatus={syncStatus} syncTs={syncTs} onLogout={handleLogout}
+            onViewResults={()=>setScreen("results")}/>
+        )}
+        {screen==="results"&&(
+          <ResultsViewer students={students} onClose={()=>setScreen("dash")} onSelect={id=>{handleSelect(id);}}/>
+        )}
+        {screen==="editor"&&activeStudent&&(
+          <Editor student={activeStudent} onSave={handleSave}
+            onBack={()=>{setScreen("dash");setPrevSt(null);}}
+            onPrint={st=>{setPrintSt(st);setScreen("print");}}
+            onDelete={handleDelete} showToast={showToast}/>
+        )}
+        {screen==="print"&&printSt&&(
+          <PrintView student={printSt} onClose={()=>setScreen("editor")}/>
+        )}
+      </div>
+      {isDesktop&&screen!=="print"&&(
+        <div className="right-pane">
+          <div style={{color:"rgba(255,255,255,0.3)",fontSize:10,letterSpacing:2,marginBottom:14,fontWeight:700}}>◀ LIVE PREVIEW ▶</div>
+          <LivePreview student={prevSt||activeStudent}/>
+        </div>
+      )}
+      <Toast msg={toastMsg}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
