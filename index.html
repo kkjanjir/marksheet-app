@@ -1482,13 +1482,9 @@ function PrintView({student:s, onClose}){
                 <div style={{fontSize:8.5,fontWeight:800,color:"#8B0000",letterSpacing:1,textTransform:"uppercase"}}>Principal</div>
               </div>
             </div>
-
           </div>
-
-        </div>{/* inner border */}
-        </div>{/* gold border */}
-        </div>{/* outer red border */}
-      </div>{/* MARKSHEET */}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1620,13 +1616,36 @@ function App(){
 
   useEffect(()=>{
     if(!loggedIn) return;
-    setSyncStatus("syncing");
-    fbAll().then(data=>{
-      const d=Array.isArray(data)?data:[];
-      setStudents(d.length>0?d:lsLoad());
-      setSyncStatus("synced");setSyncTs(new Date().toLocaleTimeString("en-IN"));setLoaded(true);
-    }).catch(()=>{setStudents(lsLoad());setSyncStatus("offline");setLoaded(true);showToast("📴 Offline mode");});
-  },[loggedIn]);
+    let cancelled = false;
+
+    const loadData = async () => {
+      setSyncStatus("syncing");
+      const localData = lsLoad();
+
+      try{
+        const data = await Promise.race([
+          fbAll(),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error("fb-timeout")),5000)),
+        ]);
+        if(cancelled) return;
+
+        const d = Array.isArray(data) ? data : [];
+        setStudents(d.length>0 ? d : localData);
+        setSyncStatus("synced");
+        setSyncTs(new Date().toLocaleTimeString("en-IN"));
+      }catch{
+        if(cancelled) return;
+        setStudents(localData);
+        setSyncStatus("offline");
+        showToast("📴 Offline mode");
+      }finally{
+        if(!cancelled) setLoaded(true);
+      }
+    };
+
+    loadData();
+    return()=>{cancelled=true;};
+  },[loggedIn,showToast]);
 
   useEffect(()=>{if(loaded) lsSave(students);},[students,loaded]);
 
